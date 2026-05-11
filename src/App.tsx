@@ -53,7 +53,7 @@ import {
   Cell
 } from 'recharts';
 import { cn } from './lib/utils';
-import { submitToGoogleSheets } from './services/googleSheetService';
+import { submitToGoogleSheets, verifyLogin } from './services/googleSheetService';
 
 // --- Types ---
 
@@ -326,12 +326,33 @@ const LandingView = ({ onStart }: { onStart: (role: 'student' | 'admin') => void
 const LoginView = ({ onLogin }: { onLogin: (role: 'student' | 'admin') => void }) => {
   const [role, setRole] = useState<'student' | 'admin'>('student');
   const [showPassword, setShowPassword] = useState(false);
+  const [id, setId] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await verifyLogin(id, password, role);
+      if (result.success) {
+        onLogin(result.user.role);
+      }
+    } catch (err: any) {
+      setError(err.message || "Gagal masuk. Silakan hubungi admin.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen mesh-gradient flex items-center justify-center p-6">
       <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
         className="w-full max-w-[480px] glass-card rounded-3xl p-10 flex flex-col items-center"
       >
         <div className="mb-10 text-center">
@@ -344,7 +365,7 @@ const LoginView = ({ onLogin }: { onLogin: (role: 'student' | 'admin') => void }
 
         <div className="w-full bg-surface-container-high p-1 rounded-xl flex mb-8">
           <button 
-            onClick={() => setRole('student')}
+            onClick={() => { setRole('student'); setError(null); }}
             className={cn(
               "flex-1 py-2.5 rounded-lg text-xs font-bold transition-all",
               role === 'student' ? "bg-primary text-white shadow-sm" : "text-on-surface-variant hover:text-on-surface"
@@ -353,7 +374,7 @@ const LoginView = ({ onLogin }: { onLogin: (role: 'student' | 'admin') => void }
             Siswa
           </button>
           <button 
-            onClick={() => setRole('admin')}
+            onClick={() => { setRole('admin'); setError(null); }}
             className={cn(
               "flex-1 py-2.5 rounded-lg text-xs font-bold transition-all",
               role === 'admin' ? "bg-primary text-white shadow-sm" : "text-on-surface-variant hover:text-on-surface"
@@ -363,7 +384,18 @@ const LoginView = ({ onLogin }: { onLogin: (role: 'student' | 'admin') => void }
           </button>
         </div>
 
-        <form className="w-full space-y-6" onSubmit={(e) => { e.preventDefault(); onLogin(role); }}>
+        <form className="w-full space-y-6" onSubmit={handleLogin}>
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="bg-error/10 border border-error/20 p-4 rounded-xl flex items-start gap-3"
+            >
+              <AlertTriangle className="text-error w-5 h-5 shrink-0" />
+              <p className="text-xs font-bold text-error">{error}</p>
+            </motion.div>
+          )}
+
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">NISN / Email</label>
@@ -371,9 +403,12 @@ const LoginView = ({ onLogin }: { onLogin: (role: 'student' | 'admin') => void }
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors w-4 h-4" />
                 <input 
                   type="text" 
+                  value={id}
+                  onChange={(e) => setId(e.target.value)}
                   placeholder={role === 'student' ? 'Masukkan NISN Anda' : 'Email Admin'} 
                   className="w-full pl-12 pr-4 py-3 bg-surface-container border border-outline-variant rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" 
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -386,9 +421,12 @@ const LoginView = ({ onLogin }: { onLogin: (role: 'student' | 'admin') => void }
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors w-4 h-4" />
                 <input 
                   type={showPassword ? "text" : "password"} 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••" 
                   className="w-full pl-12 pr-12 py-3 bg-surface-container border border-outline-variant rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" 
                   required
+                  disabled={isLoading}
                 />
                 <button 
                   type="button"
@@ -408,17 +446,19 @@ const LoginView = ({ onLogin }: { onLogin: (role: 'student' | 'admin') => void }
 
           <button 
             type="submit"
-            className="w-full py-4 bg-primary hover:bg-primary-container text-white rounded-2xl text-base font-bold shadow-xl shadow-primary/20 transition-all flex items-center justify-center gap-2 group"
+            disabled={isLoading}
+            className={cn(
+              "w-full py-4 bg-primary hover:bg-primary-container text-white rounded-2xl text-base font-bold shadow-xl shadow-primary/20 transition-all flex items-center justify-center gap-2 group",
+              isLoading && "animate-pulse opacity-70"
+            )}
           >
-            Masuk ke Dashboard
-            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            {isLoading ? "Sedang Memverifikasi..." : "Masuk ke Dashboard"}
+            {!isLoading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
           </button>
         </form>
 
-        <div className="mt-8 pt-8 border-t border-outline-variant/30 w-full text-center">
-          <p className="text-xs font-medium text-on-surface-variant">
-            Belum memiliki akun? <a href="#" className="text-primary font-bold hover:underline">Daftar Sertifikasi</a>
-          </p>
+        <div className="mt-8 pt-8 border-t border-outline-variant/30 w-full text-center text-on-surface-variant/50 text-[10px] font-bold uppercase tracking-widest">
+          SISTEM KEAMANAN TERENKRIPSI
         </div>
       </motion.div>
     </div>
@@ -604,23 +644,48 @@ const FileUploader = ({
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+
+  const simulateUpload = (selectedFile: File) => {
+    setUploadStatus('uploading');
+    setUploadProgress(0);
+    
+    // Simulate progress increments
+    const interval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setUploadStatus('success');
+          onUpload(selectedFile);
+          return 100;
+        }
+        return prev + Math.floor(Math.random() * 15) + 5;
+      });
+    }, 200);
+  };
 
   const validateAndSetFile = (selectedFile: File) => {
     setError(null);
+    setUploadStatus('idle');
+    setUploadProgress(0);
+    
     const extension = '.' + selectedFile.name.split('.').pop()?.toLowerCase();
     
     if (!accept.includes(extension)) {
       setError(`Format file tidak didukung. Harap gunakan: ${accept.join(', ')}`);
+      setUploadStatus('error');
       return;
     }
 
     if (selectedFile.size > maxSizeMB * 1024 * 1024) {
       setError(`Ukuran file terlalu besar. Maksimal: ${maxSizeMB}MB`);
+      setUploadStatus('error');
       return;
     }
 
     setFile(selectedFile);
-    onUpload(selectedFile);
+    simulateUpload(selectedFile);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -637,6 +702,14 @@ const FileUploader = ({
     }
   };
 
+  const removeFile = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFile(null);
+    setUploadStatus('idle');
+    setUploadProgress(0);
+    onUpload(null);
+  };
+
   return (
     <div className="space-y-2">
       <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">{label}</label>
@@ -645,32 +718,61 @@ const FileUploader = ({
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         className={cn(
-          "relative border-2 border-dashed rounded-2xl p-6 transition-all flex flex-col items-center justify-center gap-3",
+          "relative border-2 border-dashed rounded-2xl p-6 transition-all flex flex-col items-center justify-center gap-3 overflow-hidden",
           isDragging ? "border-primary bg-primary/5" : "border-outline-variant bg-surface-container/30 hover:border-primary/50",
-          error ? "border-error/50 bg-error/5" : ""
+          error ? "border-error/50 bg-error/5" : "",
+          uploadStatus === 'success' ? "border-emerald-500/50 bg-emerald-500/5" : ""
         )}
       >
         <input 
           type="file" 
-          className="absolute inset-0 opacity-0 cursor-pointer" 
+          className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed" 
           accept={accept.join(',')}
           onChange={handleFileChange}
+          disabled={uploadStatus === 'uploading'}
         />
         
         {file ? (
-          <div className="flex flex-col items-center text-center">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-2">
-              <CheckCircle2 className="text-emerald-500 w-6 h-6" />
+          <div className="w-full flex flex-col items-center text-center">
+            <div className="flex items-center gap-4 w-full">
+              <div className={cn(
+                "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-all",
+                uploadStatus === 'uploading' ? "bg-primary/10 text-primary animate-pulse" : 
+                uploadStatus === 'success' ? "bg-emerald-500/10 text-emerald-500" : 
+                "bg-error/10 text-error"
+              )}>
+                {uploadStatus === 'uploading' ? <Archive className="w-6 h-6" /> : 
+                 uploadStatus === 'success' ? <CheckCircle2 className="w-6 h-6" /> : 
+                 <AlertTriangle className="w-6 h-6" />}
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="text-sm font-bold truncate text-on-surface">{file.name}</p>
+                <p className="text-[10px] text-on-surface-variant">{(file.size / 1024 / 1024).toFixed(2)} MB • {uploadStatus === 'uploading' ? 'Mengunggah...' : uploadStatus === 'success' ? 'Berhasil' : 'Gagal'}</p>
+              </div>
+              <button 
+                type="button"
+                onClick={removeFile}
+                className="text-on-surface-variant hover:text-error transition-colors p-2 hover:bg-surface-container rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <p className="text-sm font-bold truncate max-w-[200px]">{file.name}</p>
-            <p className="text-[10px] text-on-surface-variant">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-            <button 
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setFile(null); onUpload(null); }}
-              className="mt-3 text-xs font-bold text-error hover:underline"
-            >
-              Hapus File
-            </button>
+
+            {uploadStatus === 'uploading' && (
+              <div className="w-full mt-4 space-y-1">
+                <div className="flex justify-between text-[10px] font-bold text-primary px-0.5">
+                  <span>PROSES UNGGAH</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${uploadProgress}%` }}
+                    className="h-full bg-primary"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -678,17 +780,21 @@ const FileUploader = ({
               <Archive className="w-6 h-6" />
             </div>
             <div className="text-center">
-              <p className="text-sm font-bold">Tekan untuk unggah atau seret file</p>
-              <p className="text-[10px] text-on-surface-variant mt-1">Maksimal {maxSizeMB}MB • {accept.join(', ')}</p>
+              <p className="text-sm font-bold text-on-surface">Tekan untuk unggah atau seret file</p>
+              <p className="text-[10px] text-on-surface-variant mt-1 font-medium italic">Maksimal {maxSizeMB}MB • {accept.join(', ')}</p>
             </div>
           </>
         )}
       </div>
       {error && (
-        <div className="flex items-center gap-1.5 px-1 py-1 text-error">
-          <AlertTriangle className="w-3.5 h-3.5" />
-          <p className="text-[10px] font-medium">{error}</p>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-1.5 px-2 py-1.5 bg-error/10 rounded-lg text-error"
+        >
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+          <p className="text-[10px] font-bold">{error}</p>
+        </motion.div>
       )}
     </div>
   );
