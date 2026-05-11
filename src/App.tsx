@@ -40,6 +40,8 @@ import {
   XCircle,
   RefreshCcw,
   Check,
+  Info,
+  Send,
   PieChart as PieChartIcon,
   BarChart2 as BarChartIcon
 } from 'lucide-react';
@@ -104,12 +106,8 @@ const Sidebar = ({ activeView, onViewChange, role }: { activeView: ViewState, on
 
   const studentLinks: SidebarLink[] = [
     { id: 'student-dashboard', label: 'Beranda', icon: LayoutDashboard },
-    { id: 'schemes', label: 'Skema & Unit', icon: Database },
-    { id: 'form-apl01', label: 'Form APL-01', icon: FileText },
-    { id: 'apl02', label: 'Form APL-02', icon: FileCheck },
-    { id: 'status', label: 'Status Uji', icon: BarChartIcon },
-    { id: 'portofolio', label: 'Portofolio', icon: Archive },
-    { id: 'notifications', label: 'Notifikasi', icon: Bell, badge: 3 },
+    { id: 'form-apl01', label: 'Upload APL-01', icon: FileText },
+    { id: 'apl02', label: 'Upload APL-02', icon: FileCheck },
   ];
 
   const links = role === 'admin' ? adminLinks : studentLinks;
@@ -1422,7 +1420,15 @@ const FormAPL01 = () => {
   );
 };
 
-const StudentDashboardView = () => {
+const StudentDashboardView = ({ 
+  aplSubmitted, 
+  onFinalSubmit,
+  isFullySubmitted 
+}: { 
+  aplSubmitted: { apl01: boolean, apl02: boolean }, 
+  onFinalSubmit: () => void,
+  isFullySubmitted: boolean
+}) => {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -1435,134 +1441,99 @@ const StudentDashboardView = () => {
             </span>
             <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-secondary/10 text-secondary rounded-full text-xs font-bold border border-secondary/20">
               <GraduationCap className="w-4 h-4" />
-              XII Teknik Kendaraan Ringan Otomotif 1
+              XII Desain Komunikasi Visual
             </span>
           </div>
-        </div>
-        <div className="hidden lg:block text-right">
-          <p className="text-[10px] text-on-surface-variant font-black uppercase tracking-widest mb-1">Sesi Berakhir Dalam</p>
-          <p className="text-3xl font-black text-primary font-display">24:12:05</p>
         </div>
       </section>
 
-      <div className="bg-surface-container-high p-10 rounded-3xl shadow-sm border border-outline-variant">
-        <h3 className="text-[10px] font-black text-on-surface-variant mb-10 uppercase tracking-[0.2em]">Progress Sertifikasi</h3>
-        <div className="relative flex items-center justify-between px-10">
-          <div className="absolute top-[18px] left-[10%] right-[10%] h-[2px] bg-outline-variant">
-            <div className="h-full bg-primary w-1/2" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Card APL-01 */}
+        <div className={cn(
+          "bg-surface-container-high p-8 rounded-[2rem] border transition-all flex flex-col items-center text-center",
+          aplSubmitted.apl01 ? "border-emerald-500/30 bg-emerald-500/5 shadow-lg shadow-emerald-500/5" : "border-outline-variant hover:border-primary/30"
+        )}>
+          <div className={cn(
+            "w-20 h-20 rounded-full flex items-center justify-center mb-6",
+            aplSubmitted.apl01 ? "bg-emerald-500/10 text-emerald-500 shadow-xl shadow-emerald-500/10" : "bg-primary/10 text-primary"
+          )}>
+            <FileText className="w-10 h-10" />
           </div>
-          {[
-            { label: 'Skema', active: true, done: true },
-            { label: 'APL-01', active: true, done: true },
-            { label: 'APL-02', active: true, done: false },
-            { label: 'Validasi', active: false, done: false },
-            { label: 'Assessment', active: false, done: false },
-          ].map((s, i) => (
-            <div key={i} className="relative flex flex-col items-center gap-3">
-              <div className={cn(
-                "w-9 h-9 rounded-full flex items-center justify-center z-10 font-bold text-sm",
-                s.done ? "bg-primary text-white" : s.active ? "bg-surface-container border-2 border-primary text-primary" : "bg-surface-container-high text-on-surface-variant border border-outline-variant"
-              )}>
-                {s.done ? <CheckCircle2 className="w-5 h-5" /> : i + 1}
-              </div>
-              <span className={cn(
-                "text-[10px] font-black tracking-widest",
-                s.active ? "text-primary" : "text-on-surface-variant opacity-60"
-              )}>{s.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <div className="md:col-span-12 lg:col-span-7 bg-surface-container-high p-8 rounded-3xl shadow-sm border border-outline-variant flex flex-col min-h-[400px]">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-black text-on-surface">Status Terkini</h3>
-            <span className="px-4 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-black flex items-center gap-2 border border-primary/20">
-              <span className="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
-              In Progress
-            </span>
-          </div>
-          <div className="space-y-8 flex-1">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Skema Sertifikasi</p>
-                <p className="text-base font-black">Junior Operator Desain Grafis</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Tahapan Saat Ini</p>
-                <p className="text-base font-black text-primary">Melengkapi Dokumen</p>
-              </div>
-            </div>
-            <div className="p-6 bg-surface-container-low rounded-2xl border-l-4 border-primary">
-              <p className="text-sm font-medium text-on-surface-variant italic leading-relaxed">
-                "Silahkan isi formulir pendaftaran (APL-01) dan mandiri (APL-02) melalui link resmi Google Form di bawah ini."
-              </p>
-            </div>
-            <p className="text-[10px] font-bold text-on-surface-variant">Update Terakhir: <span className="font-black">Mei 2024, 10:30</span></p>
-          </div>
+          <h4 className="text-xl font-black text-on-surface mb-2">Form APL-01</h4>
+          <p className="text-sm font-medium text-on-surface-variant mb-6 px-4">Permohonan sertifikasi kompetensi (Pendaftaran).</p>
+          
           <button 
-            onClick={() => window.open('https://forms.gle/5mkYQJNV1kgNRSAFA', '_blank')}
-            className="mt-8 w-full bg-primary hover:bg-primary-container text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl transition-all"
+            onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: 'form-apl01' }))}
+            className={cn(
+              "w-full py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2",
+              aplSubmitted.apl01 ? "bg-emerald-500 text-white" : "bg-primary text-white shadow-xl shadow-primary/20 hover:scale-[1.02]"
+            )}
           >
-            Buka Form APL-01 (Pendaftaran)
-            <ArrowRight className="w-5 h-5" />
+            {aplSubmitted.apl01 ? "Sudah Diisi (Edit)" : "Mulai Isi APL-01"}
+            {aplSubmitted.apl01 ? <Check className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
           </button>
         </div>
 
-        <div className="md:col-span-12 lg:col-span-5 bg-surface-container-high p-8 rounded-3xl shadow-sm border border-outline-variant">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-black text-on-surface">Notifikasi</h3>
-            <button className="text-xs font-bold text-primary hover:underline">Lihat Semua</button>
+        {/* Card APL-02 */}
+        <div className={cn(
+          "bg-surface-container-high p-8 rounded-[2rem] border transition-all flex flex-col items-center text-center",
+          aplSubmitted.apl02 ? "border-emerald-500/30 bg-emerald-500/5 shadow-lg shadow-emerald-500/5" : "border-outline-variant hover:border-primary/30"
+        )}>
+          <div className={cn(
+            "w-20 h-20 rounded-full flex items-center justify-center mb-6",
+            aplSubmitted.apl02 ? "bg-emerald-500/10 text-emerald-500 shadow-xl shadow-emerald-500/10" : "bg-primary/10 text-primary"
+          )}>
+            <FileCheck className="w-10 h-10" />
           </div>
-          <div className="space-y-4">
-            {[
-              { title: 'APL-01 divalidasi', desc: 'Dokumen pendaftaran telah disetujui.', icon: FileCheck, time: '2 Jam', color: 'bg-primary/10 text-primary' },
-              { title: 'Jadwal Tersedia', desc: 'Cek tab Jadwal pengarahan.', icon: Calendar, time: 'Kemarin', color: 'bg-secondary/10 text-secondary' },
-              { title: 'Profil Portofolio', desc: 'Unggah sertifikat PKL terbaru.', icon: FileText, time: '23 Okt', color: 'bg-orange-500/10 text-orange-500' },
-            ].map((n, i) => (
-              <div key={i} className="flex gap-4 p-4 rounded-2xl hover:bg-surface-container transition-colors group cursor-pointer border border-transparent hover:border-outline-variant/10">
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105", n.color)}>
-                  <n.icon className="w-6 h-6" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-black text-on-surface leading-tight">{n.title}</p>
-                  <p className="text-xs font-medium text-on-surface-variant">{n.desc}</p>
-                  <p className="text-[10px] font-bold text-on-surface-variant/50">{n.time} yang lalu</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <h4 className="text-xl font-black text-on-surface mb-2">Form APL-02</h4>
+          <p className="text-sm font-medium text-on-surface-variant mb-6 px-4">Asesmen mandiri untuk menentukan kesiapan uji kompetensi.</p>
+          
+          <button 
+            onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: 'apl02' }))}
+            className={cn(
+              "w-full py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2",
+              aplSubmitted.apl02 ? "bg-emerald-500 text-white" : "bg-primary text-white shadow-xl shadow-primary/20 hover:scale-[1.02]"
+            )}
+          >
+            {aplSubmitted.apl02 ? "Sudah Diisi (Edit)" : "Mulai Isi APL-02"}
+            {aplSubmitted.apl02 ? <Check className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <a href="#" className="bg-surface-container-high p-6 rounded-2xl flex items-center gap-4 hover:scale-[1.02] transition-transform border border-outline-variant">
-          <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center shadow-sm border border-outline-variant">
-            <Download className="text-primary w-6 h-6" />
+      {/* Button Ajukan Validasi */}
+      <div className="pt-8 border-t border-outline-variant/30 flex flex-col items-center">
+        {isFullySubmitted ? (
+          <div className="flex flex-col items-center gap-4 bg-emerald-500/10 p-10 rounded-[2.5rem] border border-emerald-500/20 w-full max-w-2xl text-center shadow-2xl shadow-emerald-500/10 animate-in zoom-in duration-500">
+            <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center text-white mb-2 shadow-xl shadow-emerald-500/20">
+              <Clock className="w-10 h-10 animate-pulse" />
+            </div>
+            <h4 className="text-2xl font-black text-emerald-500">Ajuan Sedang Diproses</h4>
+            <p className="text-sm font-medium text-on-surface-variant leading-relaxed max-w-sm">
+              Dokumen pendaftaran Anda telah dikirim dan kini tengah menunggu antrean validasi oleh Admin LSP SMK Tanjung Priok 1.
+            </p>
           </div>
-          <div>
-            <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Download</p>
-            <p className="text-sm font-black text-on-surface">Buku Panduan</p>
+        ) : (
+          <div className="flex flex-col items-center gap-6 w-full max-w-2xl text-center">
+            <p className="text-sm font-medium text-on-surface-variant opacity-60 flex items-center gap-2">
+              <Info className="w-4 h-4" />
+              Tombol pengajuan akan aktif secara otomatis setelah Anda melengkapi APL-01 & APL-02.
+            </p>
+            <button 
+              disabled={!(aplSubmitted.apl01 && aplSubmitted.apl02)}
+              onClick={onFinalSubmit}
+              className={cn(
+                "w-full py-6 rounded-3xl font-black text-lg transition-all flex items-center justify-center gap-4 border-2 shadow-2xl",
+                (aplSubmitted.apl01 && aplSubmitted.apl02) 
+                  ? "bg-emerald-500 text-white border-emerald-400 hover:scale-[1.02] active:scale-95 shadow-emerald-500/20" 
+                  : "bg-surface-container text-on-surface-variant border-outline-variant opacity-40 grayscale cursor-not-allowed"
+              )}
+            >
+              <Send className="w-6 h-6" />
+              AJUKAN MENUNGGU VALIDASI ADMIN
+            </button>
           </div>
-        </a>
-        <a href="#" className="bg-surface-container-high p-6 rounded-2xl flex items-center gap-4 hover:scale-[1.02] transition-transform border border-outline-variant">
-          <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center shadow-sm border border-outline-variant">
-            <HelpCircle className="text-primary w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Bantuan</p>
-            <p className="text-sm font-black text-on-surface">FAQ Sertifikasi</p>
-          </div>
-        </a>
-        <div className="sm:col-span-2 relative overflow-hidden rounded-3xl bg-primary text-white p-6 flex items-center justify-between group">
-          <div className="relative z-10">
-            <p className="text-[10px] font-bold uppercase opacity-80 mb-1 tracking-widest">Info Sertifikasi</p>
-            <h4 className="text-lg font-black">Uji Kompetensi Gelombang 2</h4>
-            <p className="text-xs opacity-90 font-medium">Mulai 15 November 2024</p>
-          </div>
-          <Star className="w-20 h-20 absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 group-hover:rotate-12 transition-transform" />
-        </div>
+        )}
       </div>
     </div>
   );
@@ -1573,6 +1544,8 @@ const StudentDashboardView = () => {
 export default function App() {
   const [view, setView] = useState<ViewState>('landing');
   const [currentUser, setCurrentUser] = useState<{ name: string, role: 'admin' | 'student' } | null>(null);
+  const [aplSubmitted, setAplSubmitted] = useState({ apl01: false, apl02: false });
+  const [isFullySubmitted, setIsFullySubmitted] = useState(false);
 
   const handleStart = (role: 'student' | 'admin') => setView('login');
 
@@ -1593,8 +1566,10 @@ export default function App() {
 
   const handleViewChange = (newView: ViewState) => {
     if (newView === 'form-apl01') {
+      setAplSubmitted(prev => ({ ...prev, apl01: true }));
       window.open('https://forms.gle/5mkYQJNV1kgNRSAFA', '_blank');
     } else if (newView === 'apl02') {
+      setAplSubmitted(prev => ({ ...prev, apl02: true }));
       window.open('https://forms.gle/2MpGEwA7pQVrJk5S8', '_blank');
     } else {
       setView(newView);
@@ -1642,7 +1617,13 @@ export default function App() {
               />
               <div className="p-8 pb-12 flex-1">
                 {view === 'admin-dashboard' && <AdminDashboardView />}
-                {view === 'student-dashboard' && <StudentDashboardView />}
+                {view === 'student-dashboard' && (
+                  <StudentDashboardView 
+                    aplSubmitted={aplSubmitted} 
+                    onFinalSubmit={() => setIsFullySubmitted(true)} 
+                    isFullySubmitted={isFullySubmitted}
+                  />
+                )}
                 {view === 'form-apl01' && <FormAPL01 />}
                 {view === 'validation' && <ValidationView />}
                 {view === 'schemes' && <SchemesView />}
