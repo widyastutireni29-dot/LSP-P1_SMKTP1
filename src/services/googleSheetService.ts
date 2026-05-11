@@ -169,3 +169,77 @@ export const verifyLogin = async (id: string, pass: string, role: 'student' | 'a
     throw new Error(error.message || "Terjadi kesalahan koneksi database.");
   }
 };
+
+// --- CRUD FOR USERS ---
+
+export const getAllUsers = async () => {
+  const AUTH_URL = getEnv('VITE_GOOGLE_SHEET_AUTH_URL') || getEnv('VITE_GOOGLE_SHEET');
+  if (!AUTH_URL) return [];
+  try {
+    const response = await fetch(AUTH_URL);
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    return [];
+  }
+};
+
+export const addUser = async (userData: any) => {
+  const AUTH_URL = getEnv('VITE_GOOGLE_SHEET_AUTH_URL') || getEnv('VITE_GOOGLE_SHEET');
+  if (!AUTH_URL) return { success: true }; // Simulator
+  try {
+    const response = await fetch(AUTH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(userData)
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Error adding user:", error);
+    throw error;
+  }
+};
+
+// --- CRUD FOR STUDENT DATA (APL-01) ---
+
+export const getAllStudents = async () => {
+  const API_URL = getEnv('VITE_GOOGLE_SHEET_API_URL') || getEnv('VITE_GOOGLE_SHEET');
+  if (!API_URL) return [];
+  try {
+    const response = await fetch(API_URL);
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    return [];
+  }
+};
+
+// --- SUBMISSION MANAGEMENT ---
+
+export const getAllSubmissions = async () => {
+  const API_URL = getEnv('VITE_GOOGLE_SHEET_SUBMISSION_URL') || getEnv('VITE_GOOGLE_SHEET');
+  if (!API_URL) return [];
+  try {
+    const response = await fetch(API_URL);
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching submissions:", error);
+    return [];
+  }
+};
+
+export const updateSubmissionStatus = async (id: string, status: string) => {
+  const API_URL = getEnv('VITE_GOOGLE_SHEET_SUBMISSION_URL') || getEnv('VITE_GOOGLE_SHEET');
+  if (!API_URL) return { success: true };
+  try {
+    const response = await fetch(`${API_URL}/Name/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ Status: status })
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating submission:", error);
+    throw error;
+  }
+};

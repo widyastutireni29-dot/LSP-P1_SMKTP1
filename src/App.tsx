@@ -63,7 +63,7 @@ import { getSubmissionStatus, saveFinalSubmission, submitToGoogleSheets, verifyL
 
 // --- Types ---
 
-type ViewState = 'landing' | 'login' | 'student-dashboard' | 'admin-dashboard' | 'form-apl01' | 'validation' | 'schemes' | 'apl02' | 'public-schemes';
+type ViewState = 'landing' | 'login' | 'student-dashboard' | 'admin-dashboard' | 'form-apl01' | 'validation' | 'schemes' | 'apl02' | 'public-schemes' | 'manage-users' | 'manage-students';
 
 // --- Mock Data ---
 
@@ -98,11 +98,11 @@ const Sidebar = ({ activeView, onViewChange, role }: { activeView: ViewState, on
 
   const adminLinks: SidebarLink[] = [
     { id: 'admin-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'validation', label: 'Document Validation', icon: FileCheck },
+    { id: 'manage-users', label: 'Kelola User', icon: Users },
+    { id: 'manage-students', label: 'Data Siswa (APL01)', icon: GraduationCap },
+    { id: 'validation', label: 'Kelola Ajuan (APL02)', icon: FileCheck },
     { id: 'schemes', label: 'Schemes & Units', icon: Database },
-    { id: 'schedule', label: 'Schedule & TUK', icon: Calendar },
     { id: 'letters', label: 'Letter Generator', icon: FileText },
-    { id: 'archive', label: 'Archive', icon: Archive },
   ];
 
   const studentLinks: SidebarLink[] = [
@@ -808,40 +808,49 @@ const FileUploader = ({
 };
 
 const ValidationView = () => {
-  const [applications, setApplications] = useState(RECENT_APPLICATIONS);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleAction = (id: string, newStatus: string) => {
-    // In a real app, this would be an API call to update the status in GSheets
-    setApplications(prev => prev.map(app => app.id === id ? { ...app, status: newStatus } : app));
+  const fetchSubmissions = async () => {
+    setIsLoading(true);
+    try {
+      const { getAllSubmissions } = await import('./services/googleSheetService');
+      const data = await getAllSubmissions();
+      setSubmissions(data);
+    } catch (e) {
+      console.error(e);
+      setSubmissions(RECENT_APPLICATIONS); // Fallback to mock
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchSubmissions();
+  }, []);
+
+  const handleAction = async (name: string, newStatus: string) => {
+    try {
+      const { updateSubmissionStatus } = await import('./services/googleSheetService');
+      await updateSubmissionStatus(name, newStatus);
+      fetchSubmissions();
+    } catch (e) {
+      alert("Gagal update status");
+    }
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-black text-on-surface">Validasi Dokumen</h2>
-          <p className="text-on-surface-variant font-medium mt-1">Kelola dan verifikasi berkas pendaftaran sertifikasi asesi.</p>
-        </div>
-        <div className="flex items-center gap-3 bg-surface-container-high px-4 py-2 rounded-2xl border border-outline-variant shadow-sm">
-          <Clock className="w-5 h-5 text-primary" />
-          <div className="text-left">
-            <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest leading-none">Menunggu</p>
-            <p className="text-lg font-black text-on-surface leading-none mt-1">12 Berkas</p>
-          </div>
+          <h2 className="text-3xl font-black text-on-surface">Kelola Ajuan Sertifikasi</h2>
+          <p className="text-on-surface-variant font-medium mt-1">Verifikasi berkas asesi dan update status kelulusan/validasi.</p>
         </div>
       </div>
 
       <div className="bg-surface-container-high rounded-[2rem] shadow-sm border border-outline-variant overflow-hidden">
         <div className="p-8 flex justify-between items-center bg-surface-container/50 border-b border-outline-variant">
-          <h4 className="text-lg font-bold text-on-surface tracking-tight uppercase">Daftar Antrean APL-01</h4>
-          <div className="relative group hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors w-4 h-4" />
-            <input 
-              type="text" 
-              placeholder="Cari asesi..." 
-              className="pl-10 pr-4 py-2 bg-surface-container border border-outline-variant rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20 w-64 transition-all" 
-            />
-          </div>
+          <h4 className="text-lg font-bold text-on-surface tracking-tight uppercase">Daftar Antrean Ajuan</h4>
         </div>
         
         <div className="overflow-x-auto">
@@ -849,77 +858,50 @@ const ValidationView = () => {
             <thead className="bg-surface-container/30 border-b border-outline-variant">
               <tr>
                 <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Asesi</th>
-                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Skema Sertifikasi</th>
-                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Tgl Kirim</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Skema</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Link GDrive</th>
                 <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Status</th>
-                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] text-center">Tindakan Cepat</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] text-center">Update Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant">
-              {applications.map((app) => (
-                <tr key={app.id} className="hover:bg-surface-container/30 transition-all group">
+              {isLoading ? (
+                <tr><td colSpan={5} className="px-8 py-10 text-center animate-pulse font-bold">Memuat ajuan...</td></tr>
+              ) : submissions.map((app: any, i) => (
+                <tr key={i} className="hover:bg-surface-container/30 transition-all group">
                   <td className="px-8 py-5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-lg border border-primary/20">
-                        {app.name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-on-surface">{app.name}</p>
-                        <p className="text-[10px] font-bold text-on-surface-variant opacity-60">ID: APL-{app.id}</p>
-                      </div>
+                    <p className="text-sm font-black text-on-surface">{app.name || app.Name}</p>
+                    <p className="text-[10px] font-bold text-on-surface-variant opacity-60">{app.Date || app.date}</p>
+                  </td>
+                  <td className="px-8 py-5 text-sm font-medium text-on-surface-variant">{app.scheme || app.Scheme}</td>
+                  <td className="px-8 py-5">
+                    <div className="flex flex-col gap-1">
+                      <a href={app.APL01_Link} target="_blank" className="text-[10px] text-primary hover:underline font-bold">APL-01 Link</a>
+                      <a href={app.APL02_Link} target="_blank" className="text-[10px] text-primary hover:underline font-bold">APL-02 Link</a>
                     </div>
                   </td>
-                  <td className="px-8 py-5">
-                    <div className="space-y-1">
-                      <p className="text-sm font-bold text-on-surface-variant group-hover:text-on-surface transition-colors">{app.scheme}</p>
-                      <button className="text-[10px] font-black text-primary hover:underline flex items-center gap-1">
-                        <Eye className="w-3 h-3" /> Lihat Berkas
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5 text-sm font-bold text-on-surface-variant">{app.date}</td>
                   <td className="px-8 py-5">
                     <span className={cn(
-                      "px-4 py-1.5 rounded-xl text-[10px] font-black flex items-center gap-2 w-fit uppercase tracking-wider border",
-                      app.status === 'Valid' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : 
-                      app.status === 'Revisi' ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
-                      app.status === 'Ditolak' ? "bg-error/10 text-error border-error/20" :
+                      "px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border",
+                      app.Status === 'Valid' || app.status === 'Valid' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : 
                       "bg-primary/10 text-primary border-primary/20"
                     )}>
-                      <div className={cn("w-1.5 h-1.5 rounded-full", 
-                        app.status === 'Valid' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : 
-                        app.status === 'Revisi' ? "bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]" :
-                        app.status === 'Ditolak' ? "bg-error shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
-                        "bg-primary shadow-[0_0_8px_rgba(99,102,241,0.5)]"
-                      )} />
-                      {app.status}
+                      {app.Status || app.status}
                     </span>
                   </td>
                   <td className="px-8 py-5">
                     <div className="flex items-center justify-center gap-2">
                       <button 
-                        onClick={() => handleAction(app.id, 'Valid')}
-                        disabled={app.status === 'Valid'}
-                        className="p-2.5 bg-emerald-500/5 hover:bg-emerald-500 text-on-surface-variant hover:text-white rounded-xl border border-emerald-500/10 hover:border-emerald-500 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
-                        title="Setujui Dokumen"
+                        onClick={() => handleAction(app.Name || app.name, 'Valid')}
+                        className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
                       >
-                        <CheckCircle2 className="w-5 h-5" />
+                        <Check className="w-4 h-4" />
                       </button>
                       <button 
-                        onClick={() => handleAction(app.id, 'Revisi')}
-                        disabled={app.status === 'Revisi'}
-                        className="p-2.5 bg-orange-500/5 hover:bg-orange-500 text-on-surface-variant hover:text-white rounded-xl border border-orange-500/10 hover:border-orange-500 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
-                        title="Minta Revisi"
+                        onClick={() => handleAction(app.Name || app.name, 'Revisi')}
+                        className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all"
                       >
-                        <RefreshCcw className="w-5 h-5" />
-                      </button>
-                      <button 
-                        onClick={() => handleAction(app.id, 'Ditolak')}
-                        disabled={app.status === 'Ditolak'}
-                        className="p-2.5 bg-error/5 hover:bg-error text-on-surface-variant hover:text-white rounded-xl border border-error/10 hover:border-error transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
-                        title="Tolak Pendaftaran"
-                      >
-                        <XCircle className="w-5 h-5" />
+                        <RefreshCcw className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -929,25 +911,192 @@ const ValidationView = () => {
           </table>
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-        <div className="flex items-center gap-5 p-6 bg-surface-container/50 rounded-3xl border border-outline-variant group hover:bg-emerald-500/5 transition-all">
-          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <ShieldCheck className="w-8 h-8" />
-          </div>
-          <div>
-            <h5 className="text-sm font-black uppercase tracking-widest text-on-surface-variant mb-1">Standar Keamanan</h5>
-            <p className="text-xs font-medium text-on-surface-variant leading-relaxed">Seluruh proses validasi direkam pada log sistem untuk audit integritas pendaftaran BNSP.</p>
-          </div>
+    </div>
+  );
+};
+
+const ManageUsersView = () => {
+  const [users, setUsers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newUser, setNewUser] = useState({ Credential: '', Password: 'password', Role: 'Siswa', Name: '' });
+
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    try {
+      const { getAllUsers } = await import('./services/googleSheetService');
+      const data = await getAllUsers();
+      setUsers(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { addUser } = await import('./services/googleSheetService');
+      await addUser(newUser);
+      setShowAddModal(false);
+      fetchUsers();
+    } catch (e) {
+      alert("Gagal menambah user");
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex justify-between items-center text-on-surface">
+        <div>
+          <h2 className="text-3xl font-black">Kelola User LSP</h2>
+          <p className="text-on-surface-variant font-medium mt-1">Daftar pengguna sistem LSP (Siswa & Admin) dari Google Sheet.</p>
         </div>
-        <div className="flex items-center gap-5 p-6 bg-surface-container/50 rounded-3xl border border-outline-variant group hover:bg-primary/5 transition-all">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Database className="w-8 h-8" />
-          </div>
-          <div>
-            <h5 className="text-sm font-black uppercase tracking-widest text-on-surface-variant mb-1">Sync Real-time</h5>
-            <p className="text-xs font-medium text-on-surface-variant leading-relaxed">Status perubahan akan langsung tersinkronisasi ke Google Sheet Database dan dashboard asesi.</p>
-          </div>
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="bg-primary text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]"
+        >
+          <Users className="w-5 h-5" /> Tambah User
+        </button>
+      </div>
+
+      <div className="bg-surface-container-high rounded-[2rem] border border-outline-variant overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-surface-container/30 border-b border-outline-variant">
+              <tr>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Nama</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Credential</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Role</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant">
+              {isLoading ? (
+                <tr><td colSpan={4} className="px-8 py-10 text-center animate-pulse font-bold text-on-surface-variant">Memuat data user...</td></tr>
+              ) : users.length === 0 ? (
+                 <tr><td colSpan={4} className="px-8 py-10 text-center font-bold text-on-surface-variant">Tidak ada data user.</td></tr>
+              ) : users.map((u, i) => (
+                <tr key={i} className="hover:bg-surface-container/30 transition-all font-medium">
+                  <td className="px-8 py-5 text-sm font-bold text-on-surface">{u.Name}</td>
+                  <td className="px-8 py-5 text-sm text-on-surface-variant">{u.Credential}</td>
+                  <td className="px-8 py-5">
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
+                      u.Role === 'Admin' ? "bg-red-500/10 text-red-500" : "bg-primary/10 text-primary"
+                    )}>
+                      {u.Role}
+                    </span>
+                  </td>
+                  <td className="px-8 py-5 text-center">
+                    <button className="text-on-surface-variant hover:text-error transition-colors p-2 rounded-lg hover:bg-error/5">
+                      <XCircle className="w-5 h-5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {showAddModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-surface/80 backdrop-blur-sm">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-surface-container-high p-8 rounded-[2rem] border border-outline-variant w-full max-w-md shadow-2xl">
+            <h3 className="text-xl font-black mb-6">Tambah User Baru</h3>
+            <form onSubmit={handleAddUser} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider px-1">Nama Lengkap</label>
+                <input required className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/20" value={newUser.Name} onChange={e => setNewUser({...newUser, Name: e.target.value})} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider px-1">Credential (NISN/Email)</label>
+                <input required className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/20" value={newUser.Credential} onChange={e => setNewUser({...newUser, Credential: e.target.value})} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider px-1">Role</label>
+                <select className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/20" value={newUser.Role} onChange={e => setNewUser({...newUser, Role: e.target.value})}>
+                  <option value="Siswa">Siswa</option>
+                  <option value="Admin">Admin</option>
+                </select>
+              </div>
+              <div className="flex gap-4 mt-8 pt-4">
+                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 py-3 text-sm font-bold text-on-surface-variant hover:bg-surface-container rounded-xl transition-all">Batal</button>
+                <button type="submit" className="flex-1 py-3 text-sm font-bold bg-primary text-white rounded-xl shadow-lg shadow-primary/20 transition-all">Simpan</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ManageStudentsView = () => {
+  const [students, setStudents] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const { getAllStudents } = await import('./services/googleSheetService');
+        const data = await getAllStudents();
+        setStudents(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStudents();
+  }, []);
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div>
+        <h2 className="text-3xl font-black text-on-surface">Data Asesi (APL-01)</h2>
+        <p className="text-on-surface-variant font-medium mt-1">Seluruh database pendaftaran asesi dari Google Sheet pendaftaran.</p>
+      </div>
+
+      <div className="bg-surface-container-high rounded-[2rem] border border-outline-variant overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-surface-container/30 border-b border-outline-variant">
+              <tr>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Nama</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">NISN</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Kelas</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Email</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Dokumen</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant">
+              {isLoading ? (
+                <tr><td colSpan={5} className="px-8 py-10 text-center animate-pulse font-bold text-on-surface-variant">Memuat data asesi...</td></tr>
+              ) : students.length === 0 ? (
+                <tr><td colSpan={5} className="px-8 py-10 text-center font-bold text-on-surface-variant">Belum ada data pendaftaran asesi.</td></tr>
+              ) : students.map((s, i) => (
+                <tr key={i} className="hover:bg-surface-container/30 transition-all font-medium">
+                  <td className="px-8 py-5 text-sm font-bold text-on-surface">{s.namaLengkap}</td>
+                  <td className="px-8 py-5 text-sm text-on-surface-variant">{s.nisn}</td>
+                  <td className="px-8 py-5 text-sm text-on-surface-variant">{s.kelasJurusan}</td>
+                  <td className="px-8 py-5 text-sm text-on-surface-variant">{s.email}</td>
+                  <td className="px-8 py-5">
+                    <div className="flex gap-2">
+                       <a href={s.urlKartuPelajar} target="_blank" className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all"><Database className="w-4 h-4" /></a>
+                       <a href={s.urlSertifikatMagang} target="_blank" className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"><FileText className="w-4 h-4" /></a>
+                       <a href={s.urlRapot} target="_blank" className="p-2 bg-orange-500/10 text-orange-500 rounded-lg hover:bg-orange-500 hover:text-white transition-all"><FileCheck className="w-4 h-4" /></a>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1733,7 +1882,7 @@ export default function App() {
           </motion.div>
         )}
 
-        {currentUser && (view === 'admin-dashboard' || view === 'student-dashboard' || view === 'form-apl01' || view === 'validation' || view === 'schemes') && (
+        {currentUser && (view === 'admin-dashboard' || view === 'student-dashboard' || view === 'form-apl01' || view === 'validation' || view === 'schemes' || view === 'manage-users' || view === 'manage-students') && (
           <div key="dashboard-layout" className="flex">
             <Sidebar activeView={view} onViewChange={handleViewChange} role={currentUser.role} />
             <main className="flex-1 ml-[280px] min-h-screen flex flex-col bg-surface">
@@ -1742,7 +1891,9 @@ export default function App() {
                   view === 'admin-dashboard' ? 'Overview Admin' : 
                   view === 'student-dashboard' ? 'Dashboard Siswa' :
                   view === 'form-apl01' ? 'Form APL-01' : 
-                  view === 'validation' ? 'Validasi Dokumen' : 
+                  view === 'manage-users' ? 'Kelola User' :
+                  view === 'manage-students' ? 'Data Asesi' :
+                  view === 'validation' ? 'Kelola Ajuan' : 
                   view === 'schemes' ? 'Skema & Unit' :
                   view === 'status' ? 'Status Sertifikasi' :
                   view === 'portofolio' ? 'Arsip Portofolio' :
@@ -1753,6 +1904,8 @@ export default function App() {
               />
               <div className="p-8 pb-12 flex-1">
                 {view === 'admin-dashboard' && <AdminDashboardView />}
+                {view === 'manage-users' && <ManageUsersView />}
+                {view === 'manage-students' && <ManageStudentsView />}
                 {view === 'student-dashboard' && (
                   <StudentDashboardView 
                     aplSubmitted={{ apl01: !!apl01Link, apl02: !!apl02Link }} 
