@@ -58,6 +58,61 @@ export const submitToGoogleSheets = async (data: Partial<APL01Data>) => {
   }
 };
 
+export const saveFinalSubmission = async (studentName: string, scheme: string, apl01Link: string, apl02Link: string) => {
+  const API_URL = getEnv('VITE_GOOGLE_SHEET_SUBMISSION_URL') || getEnv('VITE_GOOGLE_SHEET_API_URL') || getEnv('VITE_GOOGLE_SHEET');
+
+  if (!API_URL) {
+    console.warn("VITE_GOOGLE_SHEET_SUBMISSION_URL missing. Simulated saving.");
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    return { success: true };
+  }
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        Name: studentName, 
+        Scheme: scheme, 
+        APL01_Link: apl01Link,
+        APL02_Link: apl02Link,
+        Date: new Date().toLocaleDateString('id-ID'),
+        Status: 'Pending',
+        Timestamp: new Date().toISOString()
+      })
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("Submission error:", error);
+    throw error;
+  }
+};
+
+export const getSubmissionStatus = async (studentName: string) => {
+  const API_URL = getEnv('VITE_GOOGLE_SHEET_SUBMISSION_URL') || getEnv('VITE_GOOGLE_SHEET_API_URL') || getEnv('VITE_GOOGLE_SHEET');
+
+  if (!API_URL) {
+    // Simulasi data jika tidak ada API
+    return { success: true, status: 'Pending' };
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/search?Name=${encodeURIComponent(studentName)}`);
+    if (!response.ok) return { success: false, status: 'Unknown' };
+    
+    const submissions = await response.json();
+    if (Array.isArray(submissions) && submissions.length > 0) {
+      // Ambil yang paling baru (asumsi baris terakhir atau sorting by timestamp)
+      const lastSubmission = submissions[submissions.length - 1];
+      return { success: true, status: lastSubmission.Status || 'Pending' };
+    }
+    return { success: false, status: 'Belum Ada' };
+  } catch (error) {
+    console.error("Fetch status error:", error);
+    return { success: false, status: 'Error' };
+  }
+};
+
 export const verifyLogin = async (id: string, pass: string, role: 'student' | 'admin') => {
   const AUTH_URL = getEnv('VITE_GOOGLE_SHEET_AUTH_URL') || getEnv('VITE_GOOGLE_SHEET');
 

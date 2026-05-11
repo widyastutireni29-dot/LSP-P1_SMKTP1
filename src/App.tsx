@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, 
@@ -18,6 +18,7 @@ import {
   UserCircle,
   Search,
   ChevronRight,
+  MessageSquare,
   CheckCircle2,
   AlertTriangle,
   Users,
@@ -58,7 +59,7 @@ import {
   Cell
 } from 'recharts';
 import { cn } from './lib/utils';
-import { submitToGoogleSheets, verifyLogin } from './services/googleSheetService';
+import { getSubmissionStatus, saveFinalSubmission, submitToGoogleSheets, verifyLogin } from './services/googleSheetService';
 
 // --- Types ---
 
@@ -105,9 +106,7 @@ const Sidebar = ({ activeView, onViewChange, role }: { activeView: ViewState, on
   ];
 
   const studentLinks: SidebarLink[] = [
-    { id: 'student-dashboard', label: 'Beranda', icon: LayoutDashboard },
-    { id: 'form-apl01', label: 'Upload APL-01', icon: FileText },
-    { id: 'apl02', label: 'Upload APL-02', icon: FileCheck },
+    { id: 'student-dashboard', label: 'Ajuan Sertifikasi', icon: LayoutDashboard },
   ];
 
   const links = role === 'admin' ? adminLinks : studentLinks;
@@ -1029,25 +1028,14 @@ const SchemesView = () => {
             <div className="grid grid-cols-1 gap-2">
               <button 
                 disabled={!s.active}
-                onClick={() => s.active && window.open('https://forms.gle/5mkYQJNV1kgNRSAFA', '_blank')}
+                onClick={() => s.active && window.dispatchEvent(new CustomEvent('change-view', { detail: 'student-dashboard' }))}
                 className={cn(
                   "w-full py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2",
                   s.active ? "bg-primary text-white shadow-lg shadow-primary/20 hover:scale-[1.02]" : "bg-surface-container text-on-surface-variant cursor-not-allowed"
                 )}
               >
-                {s.active ? "Daftar APL-01" : "Belum Tersedia"}
-                {s.active && <FileText className="w-4 h-4" />}
-              </button>
-              <button 
-                disabled={!s.active}
-                onClick={() => s.active && window.open('https://forms.gle/2MpGEwA7pQVrJk5S8', '_blank')}
-                className={cn(
-                  "w-full py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2",
-                  s.active ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:scale-[1.02]" : "bg-surface-container text-on-surface-variant cursor-not-allowed"
-                )}
-              >
-                {s.active ? "Isi APL-02" : "Belum Tersedia"}
-                {s.active && <FileCheck className="w-4 h-4" />}
+                {s.active ? "Daftar di Portal" : "Belum Tersedia"}
+                {s.active && <LayoutDashboard className="w-4 h-4" />}
               </button>
             </div>
           </div>
@@ -1422,18 +1410,30 @@ const FormAPL01 = () => {
 
 const StudentDashboardView = ({ 
   aplSubmitted, 
+  apl01Link,
+  apl02Link,
+  onApl01LinkChange,
+  onApl02LinkChange,
   onFinalSubmit,
-  isFullySubmitted 
+  isFullySubmitted,
+  isLoading,
+  validationStatus 
 }: { 
   aplSubmitted: { apl01: boolean, apl02: boolean }, 
+  apl01Link: string,
+  apl02Link: string,
+  onApl01LinkChange: (val: string) => void,
+  onApl02LinkChange: (val: string) => void,
   onFinalSubmit: () => void,
-  isFullySubmitted: boolean
+  isFullySubmitted: boolean,
+  isLoading: boolean,
+  validationStatus: string
 }) => {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-black text-on-surface">Selamat Datang, Ahmad Rizki! 👋</h2>
+          <h2 className="text-3xl font-black text-on-surface">Halo, Ahmad Rizki! 👋</h2>
           <div className="flex flex-wrap gap-4 mt-3">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-bold border border-primary/20">
               <CheckCircle2 className="w-4 h-4" />
@@ -1445,95 +1445,204 @@ const StudentDashboardView = ({
             </span>
           </div>
         </div>
+        <div className="hidden lg:block text-right">
+          <p className="text-[10px] text-on-surface-variant font-black uppercase tracking-widest mb-1">Status Sertifikasi</p>
+          <div className="px-4 py-2 bg-surface-container rounded-2xl border border-outline-variant flex items-center gap-3">
+             <div className={cn("w-2 h-2 rounded-full", isFullySubmitted ? "bg-emerald-500 animate-pulse" : "bg-orange-500")} />
+             <span className="text-sm font-black">{isFullySubmitted ? "Menunggu Validasi" : "Belum Diajukan"}</span>
+          </div>
+        </div>
       </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Card APL-01 */}
-        <div className={cn(
-          "bg-surface-container-high p-8 rounded-[2rem] border transition-all flex flex-col items-center text-center",
-          aplSubmitted.apl01 ? "border-emerald-500/30 bg-emerald-500/5 shadow-lg shadow-emerald-500/5" : "border-outline-variant hover:border-primary/30"
-        )}>
-          <div className={cn(
-            "w-20 h-20 rounded-full flex items-center justify-center mb-6",
-            aplSubmitted.apl01 ? "bg-emerald-500/10 text-emerald-500 shadow-xl shadow-emerald-500/10" : "bg-primary/10 text-primary"
-          )}>
-            <FileText className="w-10 h-10" />
+      {/* Progress Tracker */}
+      <div className="bg-surface-container-high p-10 rounded-[2.5rem] shadow-sm border border-outline-variant relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-16 translate-x-16" />
+        <h3 className="text-[10px] font-black text-on-surface-variant mb-10 uppercase tracking-[0.2em] relative z-10">Alur Sertifikasi LSP</h3>
+        <div className="relative flex items-center justify-between px-10">
+          <div className="absolute top-[18px] left-[10%] right-[10%] h-[2px] bg-outline-variant">
+            <div className={cn("h-full bg-emerald-500 transition-all duration-1000", isFullySubmitted ? "w-full" : (aplSubmitted.apl01 && aplSubmitted.apl02) ? "w-1/2" : aplSubmitted.apl01 ? "w-1/4" : "w-0")} />
           </div>
-          <h4 className="text-xl font-black text-on-surface mb-2">Form APL-01</h4>
-          <p className="text-sm font-medium text-on-surface-variant mb-6 px-4">Permohonan sertifikasi kompetensi (Pendaftaran).</p>
-          
-          <button 
-            onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: 'form-apl01' }))}
-            className={cn(
-              "w-full py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2",
-              aplSubmitted.apl01 ? "bg-emerald-500 text-white" : "bg-primary text-white shadow-xl shadow-primary/20 hover:scale-[1.02]"
-            )}
-          >
-            {aplSubmitted.apl01 ? "Sudah Diisi (Edit)" : "Mulai Isi APL-01"}
-            {aplSubmitted.apl01 ? <Check className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
-          </button>
-        </div>
-
-        {/* Card APL-02 */}
-        <div className={cn(
-          "bg-surface-container-high p-8 rounded-[2rem] border transition-all flex flex-col items-center text-center",
-          aplSubmitted.apl02 ? "border-emerald-500/30 bg-emerald-500/5 shadow-lg shadow-emerald-500/5" : "border-outline-variant hover:border-primary/30"
-        )}>
-          <div className={cn(
-            "w-20 h-20 rounded-full flex items-center justify-center mb-6",
-            aplSubmitted.apl02 ? "bg-emerald-500/10 text-emerald-500 shadow-xl shadow-emerald-500/10" : "bg-primary/10 text-primary"
-          )}>
-            <FileCheck className="w-10 h-10" />
-          </div>
-          <h4 className="text-xl font-black text-on-surface mb-2">Form APL-02</h4>
-          <p className="text-sm font-medium text-on-surface-variant mb-6 px-4">Asesmen mandiri untuk menentukan kesiapan uji kompetensi.</p>
-          
-          <button 
-            onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: 'apl02' }))}
-            className={cn(
-              "w-full py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2",
-              aplSubmitted.apl02 ? "bg-emerald-500 text-white" : "bg-primary text-white shadow-xl shadow-primary/20 hover:scale-[1.02]"
-            )}
-          >
-            {aplSubmitted.apl02 ? "Sudah Diisi (Edit)" : "Mulai Isi APL-02"}
-            {aplSubmitted.apl02 ? <Check className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
-          </button>
+          {[
+            { label: 'Link APL-01', active: true, done: aplSubmitted.apl01 },
+            { label: 'Link APL-02', active: aplSubmitted.apl01, done: aplSubmitted.apl02 },
+            { label: 'Ajukan', active: aplSubmitted.apl01 && aplSubmitted.apl02, done: isFullySubmitted },
+            { label: 'Validasi Admin', active: isFullySubmitted, done: validationStatus === 'Diterima' },
+            { label: 'Sertifikat', active: validationStatus === 'Diterima', done: false },
+          ].map((s, i) => (
+            <div key={i} className="relative flex flex-col items-center gap-3 w-20">
+              <div className={cn(
+                "w-9 h-9 rounded-full flex items-center justify-center z-10 font-bold text-sm transition-all shadow-lg",
+                s.done ? "bg-emerald-500 text-white shadow-emerald-500/20" : s.active ? "bg-surface-container border-2 border-primary text-primary" : "bg-surface-container-high text-on-surface-variant border border-outline-variant"
+              )}>
+                {s.done ? <CheckCircle2 className="w-5 h-5" /> : i + 1}
+              </div>
+              <span className={cn(
+                "text-[10px] font-black tracking-widest text-center leading-tight shrink-0",
+                s.active ? "text-primary" : "text-on-surface-variant opacity-60"
+              )}>{s.label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Button Ajukan Validasi */}
-      <div className="pt-8 border-t border-outline-variant/30 flex flex-col items-center">
-        {isFullySubmitted ? (
-          <div className="flex flex-col items-center gap-4 bg-emerald-500/10 p-10 rounded-[2.5rem] border border-emerald-500/20 w-full max-w-2xl text-center shadow-2xl shadow-emerald-500/10 animate-in zoom-in duration-500">
-            <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center text-white mb-2 shadow-xl shadow-emerald-500/20">
-              <Clock className="w-10 h-10 animate-pulse" />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Card APL-01 */}
+            <div className={cn(
+              "bg-surface-container-high p-8 rounded-[2rem] border transition-all flex flex-col items-center text-center",
+              aplSubmitted.apl01 ? "border-emerald-500/30 bg-emerald-500/1 border-l-4 border-l-emerald-500" : "border-outline-variant border-l-4 border-l-primary hover:border-primary/30"
+            )}>
+              <div className={cn(
+                "w-16 h-16 rounded-2xl flex items-center justify-center mb-6",
+                aplSubmitted.apl01 ? "bg-emerald-500/10 text-emerald-500" : "bg-primary/10 text-primary"
+              )}>
+                <FileText className="w-8 h-8" />
+              </div>
+              <h4 className="text-lg font-black text-on-surface mb-1">Link GDrive APL-01</h4>
+              <p className="text-xs font-medium text-on-surface-variant mb-6 leading-relaxed px-4">Tempel link Google Drive dokumen pendaftaran Anda di sini.</p>
+              
+              <div className="w-full space-y-2">
+                <input 
+                  type="text"
+                  placeholder="https://drive.google.com/..."
+                  value={apl01Link}
+                  onChange={(e) => onApl01LinkChange(e.target.value)}
+                  disabled={isFullySubmitted}
+                  className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-2 text-xs focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:opacity-50"
+                />
+                <button 
+                  disabled={!apl01Link || isFullySubmitted}
+                  className={cn(
+                    "w-full py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2",
+                    aplSubmitted.apl01 ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "bg-primary text-white shadow-xl shadow-primary/20"
+                  )}
+                >
+                  {aplSubmitted.apl01 ? "Link Tersimpan" : "Submit Link"}
+                  {aplSubmitted.apl01 && <Check className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
-            <h4 className="text-2xl font-black text-emerald-500">Ajuan Sedang Diproses</h4>
-            <p className="text-sm font-medium text-on-surface-variant leading-relaxed max-w-sm">
-              Dokumen pendaftaran Anda telah dikirim dan kini tengah menunggu antrean validasi oleh Admin LSP SMK Tanjung Priok 1.
-            </p>
+
+            {/* Card APL-02 */}
+            <div className={cn(
+              "bg-surface-container-high p-8 rounded-[2rem] border transition-all flex flex-col items-center text-center",
+              aplSubmitted.apl02 ? "border-emerald-500/30 bg-emerald-500/5 border-l-4 border-l-emerald-500" : "border-outline-variant border-l-4 border-l-primary hover:border-primary/30"
+            )}>
+              <div className={cn(
+                "w-16 h-16 rounded-2xl flex items-center justify-center mb-6",
+                aplSubmitted.apl02 ? "bg-emerald-500/10 text-emerald-500" : "bg-primary/10 text-primary"
+              )}>
+                <FileCheck className="w-8 h-8" />
+              </div>
+              <h4 className="text-lg font-black text-on-surface mb-1">Link GDrive APL-02</h4>
+              <p className="text-xs font-medium text-on-surface-variant mb-6 leading-relaxed px-4">Tempel link Google Drive asesmen mandiri Anda di sini.</p>
+              
+              <div className="w-full space-y-2">
+                <input 
+                  type="text"
+                  placeholder="https://drive.google.com/..."
+                  value={apl02Link}
+                  onChange={(e) => onApl02LinkChange(e.target.value)}
+                  disabled={isFullySubmitted}
+                  className="w-full bg-surface-container border border-outline-variant rounded-xl px-4 py-2 text-xs focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:opacity-50"
+                />
+                <button 
+                  disabled={!apl02Link || isFullySubmitted}
+                  className={cn(
+                    "w-full py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2",
+                    aplSubmitted.apl02 ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "bg-primary text-white shadow-xl shadow-primary/20"
+                  )}
+                >
+                  {aplSubmitted.apl02 ? "Link Tersimpan" : "Submit Link"}
+                  {aplSubmitted.apl02 && <Check className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
           </div>
-        ) : (
-          <div className="flex flex-col items-center gap-6 w-full max-w-2xl text-center">
-            <p className="text-sm font-medium text-on-surface-variant opacity-60 flex items-center gap-2">
-              <Info className="w-4 h-4" />
-              Tombol pengajuan akan aktif secara otomatis setelah Anda melengkapi APL-01 & APL-02.
-            </p>
-            <button 
-              disabled={!(aplSubmitted.apl01 && aplSubmitted.apl02)}
-              onClick={onFinalSubmit}
-              className={cn(
-                "w-full py-6 rounded-3xl font-black text-lg transition-all flex items-center justify-center gap-4 border-2 shadow-2xl",
-                (aplSubmitted.apl01 && aplSubmitted.apl02) 
-                  ? "bg-emerald-500 text-white border-emerald-400 hover:scale-[1.02] active:scale-95 shadow-emerald-500/20" 
-                  : "bg-surface-container text-on-surface-variant border-outline-variant opacity-40 grayscale cursor-not-allowed"
-              )}
-            >
-              <Send className="w-6 h-6" />
-              AJUKAN MENUNGGU VALIDASI ADMIN
-            </button>
+
+
+          {/* Submission Section */}
+          <div className="bg-surface-container-high p-8 rounded-[2.5rem] border border-outline-variant/30 flex flex-col items-center">
+            {isFullySubmitted ? (
+              <div className="flex flex-col items-center gap-4 py-4 w-full text-center animate-in zoom-in duration-500">
+                <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center text-white mb-2 shadow-2xl shadow-emerald-500/20">
+                  <Clock className="w-10 h-10 animate-pulse" />
+                </div>
+                <h4 className="text-2xl font-black text-emerald-500 uppercase tracking-tighter">Ajuan Terkirim</h4>
+                <p className="text-sm font-medium text-on-surface-variant leading-relaxed max-w-sm">
+                  Menunggu validasi Admin pada sheet submission. Anda akan menerima notifikasi jika status berubah.
+                </p>
+                {validationStatus && (
+                  <div className="mt-6 px-10 py-4 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-4">
+                    <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping" />
+                    <p className="text-sm font-black uppercase tracking-widest text-emerald-500">
+                      STATUS: <span className="text-on-surface">{validationStatus}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-8 w-full text-center">
+                <div className="space-y-2">
+                  <h4 className="text-xl font-black text-on-surface">Kirim Berkas ke Admin</h4>
+                  <p className="text-sm font-medium text-on-surface-variant max-w-md">
+                    Tombol akan aktif setelah APL-01 dan APL-02 selesai diisi. Data akan direkap ke Google Sheet Submission.
+                  </p>
+                </div>
+                <button 
+                  disabled={!(aplSubmitted.apl01 && aplSubmitted.apl02) || isLoading}
+                  onClick={onFinalSubmit}
+                  className={cn(
+                    "w-full max-w-lg py-5 rounded-2xl font-black text-base transition-all flex items-center justify-center gap-4 border-2 shadow-2xl",
+                    (aplSubmitted.apl01 && aplSubmitted.apl02) 
+                      ? "bg-emerald-600 text-white border-emerald-400 hover:scale-[1.02] active:scale-95 shadow-emerald-600/30" 
+                      : "bg-surface-container text-on-surface-variant border-outline-variant opacity-40 grayscale cursor-not-allowed",
+                    isLoading && "animate-pulse"
+                  )}
+                >
+                  {isLoading ? <RefreshCcw className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
+                  {isLoading ? "SEDANG MENGIRIM..." : "AJUKAN MENUNGGU VALIDASI ADMIN"}
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Notifications Panel Restored */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="bg-surface-container-high p-8 rounded-[2.5rem] shadow-sm border border-outline-variant">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="text-xl font-black text-on-surface">Pusat Info</h3>
+              <div className="w-2 h-2 bg-primary rounded-full" />
+            </div>
+            <div className="space-y-5">
+              {[
+                { title: 'Update Skema', desc: 'Junior Operator Desain Grafis v2024', icon: Database, color: 'bg-primary/10 text-primary' },
+                { title: 'Buku Panduan', desc: 'Download PDF cara pendaftaran', icon: Download, color: 'bg-secondary/10 text-secondary' },
+                { title: 'Kontak Admin', desc: 'Hubungi LSP via WhatsApp', icon: MessageSquare, color: 'bg-emerald-500/10 text-emerald-500' },
+              ].map((n, i) => (
+                <div key={i} className="flex gap-4 p-4 rounded-2xl hover:bg-surface-container transition-colors group cursor-pointer border border-transparent hover:border-outline-variant/10">
+                  <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110", n.color)}>
+                    <n.icon className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-black text-on-surface leading-tight">{n.title}</p>
+                    <p className="text-[11px] font-medium text-on-surface-variant leading-tight">{n.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 pt-8 border-t border-outline-variant/30">
+              <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10">
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-2">Penting</p>
+                <p className="text-xs font-semibold text-on-surface-variant leading-relaxed italic">
+                  "Pastikan link Google Drive bukti fisik APL-02 dapat diakses oleh publik (Viewer)."
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1544,16 +1653,55 @@ const StudentDashboardView = ({
 export default function App() {
   const [view, setView] = useState<ViewState>('landing');
   const [currentUser, setCurrentUser] = useState<{ name: string, role: 'admin' | 'student' } | null>(null);
-  const [aplSubmitted, setAplSubmitted] = useState({ apl01: false, apl02: false });
+  const [apl01Link, setApl01Link] = useState('');
+  const [apl02Link, setApl02Link] = useState('');
   const [isFullySubmitted, setIsFullySubmitted] = useState(false);
+  const [isFinalLoading, setIsFinalLoading] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<string>('');
+
+  const handleViewChange = useCallback((newView: ViewState) => {
+    setView(newView);
+  }, []);
 
   const handleStart = (role: 'student' | 'admin') => setView('login');
 
   React.useEffect(() => {
-    const handleViewChangeEv = (e: any) => setView(e.detail);
+    const handleViewChangeEv = (e: any) => handleViewChange(e.detail);
     window.addEventListener('change-view', handleViewChangeEv);
     return () => window.removeEventListener('change-view', handleViewChangeEv);
-  }, []);
+  }, [handleViewChange]);
+
+  React.useEffect(() => {
+    if (view === 'student-dashboard' && currentUser) {
+      const fetchStatus = async () => {
+        try {
+          const res = await getSubmissionStatus(currentUser.name);
+          if (res.success) {
+            setValidationStatus(res.status);
+            if (res.status !== 'Belum Ada') setIsFullySubmitted(true);
+          }
+        } catch (e) {
+          console.error("Failed to fetch status", e);
+        }
+      };
+      fetchStatus();
+      const interval = setInterval(fetchStatus, 30000); // Polling every 30s
+      return () => clearInterval(interval);
+    }
+  }, [view, currentUser]);
+
+  const handleFinalSubmit = async () => {
+    if (!currentUser) return;
+    setIsFinalLoading(true);
+    try {
+      await saveFinalSubmission(currentUser.name, "Junior Operator Desain Grafis", apl01Link, apl02Link);
+      setIsFullySubmitted(true);
+    } catch (error) {
+      alert("Gagal mengirim ajukan. Silakan cek koneksi Anda.");
+    } finally {
+      setIsFinalLoading(false);
+    }
+  };
   
   const handleLogin = (role: 'student' | 'admin') => {
     const userRole = role === 'admin' ? 'admin' : 'student';
@@ -1562,18 +1710,6 @@ export default function App() {
       role: userRole 
     });
     setView(userRole === 'admin' ? 'admin-dashboard' : 'student-dashboard');
-  };
-
-  const handleViewChange = (newView: ViewState) => {
-    if (newView === 'form-apl01') {
-      setAplSubmitted(prev => ({ ...prev, apl01: true }));
-      window.open('https://forms.gle/5mkYQJNV1kgNRSAFA', '_blank');
-    } else if (newView === 'apl02') {
-      setAplSubmitted(prev => ({ ...prev, apl02: true }));
-      window.open('https://forms.gle/2MpGEwA7pQVrJk5S8', '_blank');
-    } else {
-      setView(newView);
-    }
   };
 
   return (
@@ -1619,9 +1755,15 @@ export default function App() {
                 {view === 'admin-dashboard' && <AdminDashboardView />}
                 {view === 'student-dashboard' && (
                   <StudentDashboardView 
-                    aplSubmitted={aplSubmitted} 
-                    onFinalSubmit={() => setIsFullySubmitted(true)} 
+                    aplSubmitted={{ apl01: !!apl01Link, apl02: !!apl02Link }} 
+                    apl01Link={apl01Link}
+                    apl02Link={apl02Link}
+                    onApl01LinkChange={setApl01Link}
+                    onApl02LinkChange={setApl02Link}
+                    onFinalSubmit={handleFinalSubmit} 
                     isFullySubmitted={isFullySubmitted}
+                    isLoading={isFinalLoading}
+                    validationStatus={validationStatus}
                   />
                 )}
                 {view === 'form-apl01' && <FormAPL01 />}
