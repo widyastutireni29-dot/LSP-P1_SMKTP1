@@ -53,6 +53,7 @@ import {
   Cell
 } from 'recharts';
 import { cn } from './lib/utils';
+import { submitToGoogleSheets } from './services/googleSheetService';
 
 // --- Types ---
 
@@ -589,8 +590,158 @@ const AdminDashboardView = () => {
   );
 };
 
+const FileUploader = ({ 
+  label, 
+  accept, 
+  maxSizeMB = 5, 
+  onUpload 
+}: { 
+  label: string, 
+  accept: string[], 
+  maxSizeMB?: number,
+  onUpload: (file: File | null) => void 
+}) => {
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const validateAndSetFile = (selectedFile: File) => {
+    setError(null);
+    const extension = '.' + selectedFile.name.split('.').pop()?.toLowerCase();
+    
+    if (!accept.includes(extension)) {
+      setError(`Format file tidak didukung. Harap gunakan: ${accept.join(', ')}`);
+      return;
+    }
+
+    if (selectedFile.size > maxSizeMB * 1024 * 1024) {
+      setError(`Ukuran file terlalu besar. Maksimal: ${maxSizeMB}MB`);
+      return;
+    }
+
+    setFile(selectedFile);
+    onUpload(selectedFile);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files?.[0]) {
+      validateAndSetFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      validateAndSetFile(e.target.files[0]);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">{label}</label>
+      <div 
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+        className={cn(
+          "relative border-2 border-dashed rounded-2xl p-6 transition-all flex flex-col items-center justify-center gap-3",
+          isDragging ? "border-primary bg-primary/5" : "border-outline-variant bg-surface-container/30 hover:border-primary/50",
+          error ? "border-error/50 bg-error/5" : ""
+        )}
+      >
+        <input 
+          type="file" 
+          className="absolute inset-0 opacity-0 cursor-pointer" 
+          accept={accept.join(',')}
+          onChange={handleFileChange}
+        />
+        
+        {file ? (
+          <div className="flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-2">
+              <CheckCircle2 className="text-emerald-500 w-6 h-6" />
+            </div>
+            <p className="text-sm font-bold truncate max-w-[200px]">{file.name}</p>
+            <p className="text-[10px] text-on-surface-variant">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            <button 
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setFile(null); onUpload(null); }}
+              className="mt-3 text-xs font-bold text-error hover:underline"
+            >
+              Hapus File
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
+              <Archive className="w-6 h-6" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-bold">Tekan untuk unggah atau seret file</p>
+              <p className="text-[10px] text-on-surface-variant mt-1">Maksimal {maxSizeMB}MB • {accept.join(', ')}</p>
+            </div>
+          </>
+        )}
+      </div>
+      {error && (
+        <div className="flex items-center gap-1.5 px-1 py-1 text-error">
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <p className="text-[10px] font-medium">{error}</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const FormAPL01 = () => {
-  const [step, setStep] = useState(2);
+  const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    namaLengkap: 'BUDI SANTOSO',
+    nisn: '0054321098',
+    kelasJurusan: 'XII TKJ 1',
+    tempatLahir: '',
+    tanggalLahir: '',
+    alamat: '',
+    noHp: '',
+    email: '',
+    fileKartuPelajar: null as File | null,
+    fileSertifikatMagang: null as File | null,
+    fileRapot: null as File | null,
+  });
+
+  const nextStep = () => setStep(s => Math.min(s + 1, 4));
+  const prevStep = () => setStep(s => Math.max(s - 1, 1));
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      // In a real app, you would upload files to storage first and get URLs
+      // Here we simulate the payloads
+      await submitToGoogleSheets({
+        ...formData,
+        urlKartuPelajar: formData.fileKartuPelajar ? `https://storage.lsp.sch.id/${formData.fileKartuPelajar.name}` : '',
+        urlSertifikatMagang: formData.fileSertifikatMagang ? `https://storage.lsp.sch.id/${formData.fileSertifikatMagang.name}` : '',
+        urlRapot: formData.fileRapot ? `https://storage.lsp.sch.id/${formData.fileRapot.name}` : '',
+      });
+      nextStep();
+    } catch (error) {
+      alert("Gagal mengirim data. Silakan coba lagi.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isStepValid = () => {
+    if (step === 2) {
+      return formData.tempatLahir && formData.tanggalLahir && formData.alamat && formData.noHp && formData.email;
+    }
+    if (step === 3) {
+      return formData.fileKartuPelajar && formData.fileSertifikatMagang && formData.fileRapot;
+    }
+    return true;
+  };
   
   return (
     <div className="max-w-4xl mx-auto space-y-12 animate-in slide-in-from-bottom duration-500">
@@ -605,8 +756,8 @@ const FormAPL01 = () => {
         </div>
         {[
           { n: 1, label: 'RINCIAN DATA' },
-          { n: 2, label: 'DATA DIRI ASESI' },
-          { n: 3, label: 'DOKUMEN PENDUKUNG' },
+          { n: 2, label: 'DATA DIRI' },
+          { n: 3, label: 'DOKUMEN' },
           { n: 4, label: 'KONFIRMASI' },
         ].map((s) => (
           <div key={s.n} className="flex flex-col items-center gap-3">
@@ -614,7 +765,7 @@ const FormAPL01 = () => {
               "w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shadow-sm transition-all duration-300",
               step > s.n ? "bg-primary text-white" : step === s.n ? "bg-primary text-white ring-4 ring-primary/20" : "bg-surface-container-high text-on-surface-variant"
             )}>
-              {step > s.n ? <CheckCircle2 className="w-5 h-5 color-white" /> : s.n}
+              {step > s.n ? <CheckCircle2 className="w-5 h-5 text-white" /> : s.n}
             </div>
             <span className={cn(
               "text-[10px] font-black tracking-widest transition-all",
@@ -624,100 +775,248 @@ const FormAPL01 = () => {
         ))}
       </div>
 
-      <div className="glass-card rounded-3xl overflow-hidden">
-        <div className="bg-surface-container/50 px-8 py-5 border-b border-outline-variant flex items-center gap-3">
-          <UserCircle className="text-primary w-6 h-6" />
-          <h3 className="text-lg font-bold text-on-surface">BAGIAN 1: DATA PRIBADI</h3>
-        </div>
-        
-        <div className="p-8 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Nama Lengkap</label>
-              <div className="relative">
-                <input 
-                  type="text" 
-                  value="BUDI SANTOSO" 
-                  disabled 
-                  className="w-full bg-surface-container/50 border-outline-variant text-on-surface-variant rounded-xl px-4 py-3 cursor-not-allowed font-bold" 
-                />
-                <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 w-4 h-4" />
+      <div className="glass-card rounded-3xl overflow-hidden min-h-[500px] flex flex-col">
+        <AnimatePresence mode="wait">
+          {step === 1 && (
+            <motion.div 
+              key="step1" 
+              initial={{ opacity: 0, x: 20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, x: -20 }}
+              className="flex-1 flex flex-col"
+            >
+              <div className="bg-surface-container/50 px-8 py-5 border-b border-outline-variant flex items-center gap-3">
+                <Database className="text-primary w-6 h-6" />
+                <h3 className="text-lg font-bold text-on-surface uppercase tracking-tight">Rincian Skema Sertifikasi</h3>
               </div>
-              <p className="text-[9px] text-on-surface-variant/60 italic px-1 font-medium">Terkunci secara sistem berdasarkan database DAPODIK</p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">NISN</label>
-              <div className="relative">
-                <input 
-                  type="text" 
-                  value="0054321098" 
-                  disabled 
-                  className="w-full bg-surface-container/50 border-outline-variant text-on-surface-variant rounded-xl px-4 py-3 cursor-not-allowed font-bold" 
-                />
-                <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 w-4 h-4" />
+              <div className="p-8 space-y-6">
+                <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
+                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-4">Skema Terpilih</p>
+                  <h4 className="text-2xl font-black text-on-surface leading-tight">Teknik Kendaraan Ringan Otomotif (TKRO)</h4>
+                  <p className="text-sm text-on-surface-variant mt-2 font-medium">Berdasarkan data penjurusan Anda di SMK Tanjung Priok 1.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    "Pemeliharaan Mesin Kendaraan Ringan",
+                    "Pemeliharaan Sasis dan Pemindah Tenaga",
+                    "Pemeliharaan Kelistrikan Kendaraan Ringan",
+                    "Pengelolaan Bengkel Kendaraan Ringan",
+                  ].map((unit, i) => (
+                    <div key={i} className="flex items-center gap-3 p-4 bg-surface-container/50 rounded-xl border border-outline-variant">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <CheckCircle2 className="w-4 h-4 text-primary" />
+                      </div>
+                      <span className="text-xs font-bold text-on-surface-variant">{unit}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            </motion.div>
+          )}
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Kelas & Jurusan</label>
-              <select className="w-full border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none">
-                <option>XII TKJ 1</option>
-                <option>XII TKJ 2</option>
-                <option>XII MM 1</option>
-                <option>XII RPL 1</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Tempat / Tanggal Lahir</label>
-              <div className="flex gap-2">
-                <input type="text" placeholder="Jakarta" className="w-2/3 border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none" />
-                <input type="date" className="w-1/3 border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none" />
+          {step === 2 && (
+            <motion.div 
+              key="step2" 
+              initial={{ opacity: 0, x: 20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, x: -20 }}
+              className="flex-1 flex flex-col"
+            >
+              <div className="bg-surface-container/50 px-8 py-5 border-b border-outline-variant flex items-center gap-3">
+                <UserCircle className="text-primary w-6 h-6" />
+                <h3 className="text-lg font-bold text-on-surface">Data Pribadi Asesi</h3>
               </div>
-            </div>
+              
+              <div className="p-8 space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Nama Lengkap</label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={formData.namaLengkap} 
+                        disabled 
+                        className="w-full bg-surface-container/50 border-outline-variant text-on-surface-variant rounded-xl px-4 py-3 cursor-not-allowed font-bold" 
+                      />
+                      <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">NISN</label>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={formData.nisn} 
+                        disabled 
+                        className="w-full bg-surface-container/50 border-outline-variant text-on-surface-variant rounded-xl px-4 py-3 cursor-not-allowed font-bold" 
+                      />
+                      <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 w-4 h-4" />
+                    </div>
+                  </div>
 
-            <div className="md:col-span-2 space-y-2">
-              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Alamat Lengkap (Sesuai KTP/KK)</label>
-              <textarea 
-                rows={3} 
-                className="w-full border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none resize-none" 
-                placeholder="Jl. Jampea No. 1, Kel. Koja, Kec. Tanjung Priok, Jakarta Utara, 14220"
-              />
-            </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Kelas & Jurusan</label>
+                    <select 
+                      value={formData.kelasJurusan}
+                      onChange={(e) => setFormData({...formData, kelasJurusan: e.target.value})}
+                      className="w-full border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none"
+                    >
+                      <option>XII TKJ 1</option><option>XII TKJ 2</option><option>XII MM 1</option><option>XII RPL 1</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Tempat / Tanggal Lahir</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Jakarta" 
+                        value={formData.tempatLahir}
+                        onChange={(e) => setFormData({...formData, tempatLahir: e.target.value})}
+                        className="w-2/3 border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none" 
+                      />
+                      <input 
+                        type="date" 
+                        value={formData.tanggalLahir}
+                        onChange={(e) => setFormData({...formData, tanggalLahir: e.target.value})}
+                        className="w-1/3 border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none" 
+                      />
+                    </div>
+                  </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">No. Handphone (WhatsApp Active)</label>
-              <div className="relative group">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-bold text-sm">+62</span>
-                <input type="tel" className="w-full pl-14 pr-4 py-3 border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all bg-surface-container font-medium outline-none" placeholder="8123456789" />
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Alamat Lengkap (Sesuai KTP/KK)</label>
+                    <textarea 
+                      rows={2} 
+                      value={formData.alamat}
+                      onChange={(e) => setFormData({...formData, alamat: e.target.value})}
+                      className="w-full border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none resize-none" 
+                      placeholder="Jl. Jampea No. 1, Jakarta Utara..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">No. Handphone (WhatsApp)</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-bold text-sm">+62</span>
+                      <input 
+                        type="tel" 
+                        value={formData.noHp}
+                        onChange={(e) => setFormData({...formData, noHp: e.target.value})}
+                        className="w-full pl-14 pr-4 py-3 border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all bg-surface-container font-medium outline-none" 
+                        placeholder="8123456789" 
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Email</label>
+                    <input 
+                      type="email" 
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      className="w-full border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none" 
+                      placeholder="budi.santoso@gmail.com" 
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Email Institusi / Pribadi</label>
-              <input type="email" className="w-full border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none" placeholder="budi.santoso@student.sch.id" />
-            </div>
-          </div>
+            </motion.div>
+          )}
 
-          <div className="bg-primary/10 border-l-4 border-primary p-5 rounded-r-2xl flex items-start gap-4">
-            <HelpCircle className="text-primary w-6 h-6 mt-1 shrink-0" />
-            <p className="text-sm font-medium text-on-surface-variant leading-relaxed">
-              Pastikan data yang Anda masukkan sudah benar. Kesalahan dalam pengisian data diri dapat menyebabkan kesalahan pada pencetakan Sertifikat Kompetensi dari BNSP.
-            </p>
-          </div>
-        </div>
+          {step === 3 && (
+            <motion.div 
+              key="step3" 
+              initial={{ opacity: 0, x: 20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, x: -20 }}
+              className="flex-1 flex flex-col"
+            >
+              <div className="bg-surface-container/50 px-8 py-5 border-b border-outline-variant flex items-center gap-3">
+                <FileText className="text-primary w-6 h-6" />
+                <h3 className="text-lg font-bold text-on-surface uppercase tracking-tight">Dokumen Portofolio</h3>
+              </div>
+              <div className="p-8 space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <FileUploader 
+                    label="Kartu Pelajar" 
+                    accept={['.jpg', '.png', '.pdf']} 
+                    onUpload={(file) => setFormData({...formData, fileKartuPelajar: file})} 
+                  />
+                  <FileUploader 
+                    label="Sertifikat Magang / PKL" 
+                    accept={['.jpg', '.png', '.pdf']} 
+                    onUpload={(file) => setFormData({...formData, fileSertifikatMagang: file})} 
+                  />
+                  <div className="md:col-span-2">
+                    <FileUploader 
+                      label="Rapot Semester 1 - 5 (Dijadikan 1 File PDF)" 
+                      accept={['.pdf']} 
+                      onUpload={(file) => setFormData({...formData, fileRapot: file})} 
+                    />
+                  </div>
+                </div>
+                <div className="bg-secondary/5 border-l-4 border-secondary p-5 rounded-r-2xl flex items-start gap-4">
+                  <Star className="text-secondary w-6 h-6 mt-1 shrink-0" />
+                  <p className="text-sm font-medium text-on-surface-variant leading-relaxed">
+                    Dokumen yang diunggah harus jelas terbaca. Format yang diizinkan adalah PDF atau Gambar (JPG/PNG) dengan ukuran maksimal 5MB per dokumen.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
-        <div className="bg-surface-container/30 px-8 py-6 border-t border-outline-variant flex flex-col md:flex-row justify-between items-center gap-4">
-          <button className="flex items-center gap-2 text-on-surface-variant font-bold hover:text-primary px-4 py-2 rounded-xl transition-all">
-            <ArrowLeft className="w-5 h-5" />
-            Kembali
-          </button>
-          <div className="flex items-center gap-6 w-full md:w-auto justify-end">
-            <a href="#" className="text-xs font-bold text-primary hover:underline">Simpan Draft</a>
-            <button className="bg-primary text-white px-10 py-3 rounded-2xl font-bold shadow-xl shadow-primary/20 hover:bg-primary-container transition-all flex items-center gap-2 group">
-              Lanjut
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+          {step === 4 && (
+            <motion.div 
+              key="step4" 
+              initial={{ opacity: 0, scale: 0.95 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              className="flex-1 flex flex-col items-center justify-center p-12 text-center"
+            >
+              <div className="w-24 h-24 rounded-full bg-emerald-500/10 flex items-center justify-center mb-8">
+                <CheckCircle2 className="text-emerald-500 w-12 h-12" />
+              </div>
+              <h3 className="text-3xl font-black text-on-surface mb-4">Pengajuan Terkirim!</h3>
+              <p className="text-lg text-on-surface-variant max-w-md font-medium mb-10 leading-relaxed">
+                Data Anda telah berhasil direkam ke sistem LSP dan telah dikoneksikan ke database Google Sheets (simulasi). Mohon tunggu proses validasi oleh admin.
+              </p>
+              <button 
+                onClick={() => window.location.reload()}
+                className="bg-surface-container-high border border-outline-variant text-on-surface px-10 py-3 rounded-2xl font-bold hover:bg-surface-container transition-all"
+              >
+                Kembali ke Beranda
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {step < 4 && (
+          <div className="bg-surface-container/30 px-8 py-6 border-t border-outline-variant flex flex-col md:flex-row justify-between items-center gap-4 mt-auto">
+            <button 
+              onClick={prevStep}
+              disabled={step === 1}
+              className={cn(
+                "flex items-center gap-2 text-on-surface-variant font-bold hover:text-primary px-4 py-2 rounded-xl transition-all",
+                step === 1 && "opacity-0 pointer-events-none"
+              )}
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Kembali
             </button>
+            <div className="flex items-center gap-6 w-full md:w-auto justify-end">
+              <span className="text-xs font-bold text-on-surface-variant opacity-50 hidden sm:block">Langkah {step} dari 3</span>
+              <button 
+                onClick={step === 3 ? handleSubmit : nextStep}
+                disabled={!isStepValid() || isSubmitting}
+                className={cn(
+                  "bg-primary text-white px-10 py-3 rounded-2xl font-bold shadow-xl shadow-primary/20 hover:bg-primary-container transition-all flex items-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed",
+                  isSubmitting && "animate-pulse"
+                )}
+              >
+                {isSubmitting ? "Mengirim..." : step === 3 ? "Kirim Pengajuan" : "Lanjut"}
+                {!isSubmitting && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
