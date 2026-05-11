@@ -1,0 +1,956 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  LayoutDashboard, 
+  FileCheck, 
+  Database, 
+  Calendar, 
+  FileText, 
+  Archive, 
+  Settings, 
+  LogOut, 
+  Bell, 
+  UserCircle,
+  Search,
+  ChevronRight,
+  CheckCircle2,
+  AlertTriangle,
+  Users,
+  Clock,
+  Download,
+  HelpCircle,
+  Star,
+  ChevronLeft,
+  Lock,
+  ArrowRight,
+  ArrowLeft,
+  ShieldCheck,
+  GraduationCap,
+  Globe,
+  Mail,
+  Eye,
+  EyeOff,
+  Menu,
+  X,
+  PieChart as PieChartIcon,
+  BarChart2 as BarChartIcon
+} from 'lucide-react';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
+import { cn } from './lib/utils';
+
+// --- Types ---
+
+type ViewState = 'landing' | 'login' | 'student-dashboard' | 'admin-dashboard' | 'form-apl01' | 'validation';
+
+// --- Mock Data ---
+
+const RECENT_APPLICATIONS = [
+  { id: '01', name: 'Ahmad Fauzi', scheme: 'Teknik Kendaraan Ringan', date: '12 Mei 2024', status: 'Valid' },
+  { id: '02', name: 'Siti Aminah', scheme: 'Desain Komunikasi Visual', date: '14 Mei 2024', status: 'Pending' },
+  { id: '03', name: 'Budi Hartono', scheme: 'Teknik Kendaraan Ringan', date: '15 Mei 2024', status: 'Valid' },
+  { id: '04', name: 'Rina Sari', scheme: 'Desain Komunikasi Visual', date: '15 Mei 2024', status: 'Pending' },
+];
+
+const CHART_DATA = [
+  { name: 'JAN', value: 12 },
+  { name: 'FEB', value: 18 },
+  { name: 'MAR', value: 25 },
+  { name: 'APR', value: 21 },
+  { name: 'MEI', value: 30 },
+];
+
+const PIE_DATA = [
+  { name: 'TKRO', value: 58, color: '#6366f1' }, // indigo-500
+  { name: 'DKV', value: 42, color: '#a855f7' }, // purple-500
+];
+
+// --- Components ---
+
+const Sidebar = ({ activeView, onViewChange, role }: { activeView: ViewState, onViewChange: (view: ViewState) => void, role: 'admin' | 'student' }) => {
+  type SidebarLink = {
+    id: string;
+    label: string;
+    icon: React.ElementType;
+    badge?: number;
+  };
+
+  const adminLinks: SidebarLink[] = [
+    { id: 'admin-dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'validation', label: 'Document Validation', icon: FileCheck },
+    { id: 'schemes', label: 'Schemes & Units', icon: Database },
+    { id: 'schedule', label: 'Schedule & TUK', icon: Calendar },
+    { id: 'letters', label: 'Letter Generator', icon: FileText },
+    { id: 'archive', label: 'Archive', icon: Archive },
+  ];
+
+  const studentLinks: SidebarLink[] = [
+    { id: 'student-dashboard', label: 'Beranda', icon: LayoutDashboard },
+    { id: 'form-apl01', label: 'APL-01', icon: FileText },
+    { id: 'apl02', label: 'APL-02', icon: FileCheck },
+    { id: 'status', label: 'Status', icon: BarChartIcon },
+    { id: 'portofolio', label: 'Portofolio', icon: Archive },
+    { id: 'notifications', label: 'Notifications', icon: Bell, badge: 3 },
+  ];
+
+  const links = role === 'admin' ? adminLinks : studentLinks;
+
+  return (
+    <aside className="w-[280px] h-screen bg-surface-container border-r border-outline-variant flex flex-col py-8 fixed left-0 top-0 z-50 overflow-y-auto">
+      <div className="px-6 mb-10 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center">
+          <ShieldCheck className="text-on-primary w-6 h-6" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold leading-tight text-on-surface">LSP Admin</h2>
+          <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-semibold">Professional Certification</p>
+        </div>
+      </div>
+
+      <nav className="flex-1 px-2 space-y-1">
+        {links.map((link) => (
+          <button
+            key={link.id}
+            onClick={() => onViewChange(link.id as any)}
+            className={cn(
+              "w-full flex items-center justify-between px-4 py-3 rounded-lg transition-all group",
+              activeView === link.id 
+                ? "bg-primary/10 text-primary" 
+                : "text-on-surface-variant hover:bg-white/5 hover:text-on-surface"
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <link.icon className={cn("w-5 h-5", activeView === link.id ? "text-primary" : "text-on-surface-variant group-hover:text-on-surface")} />
+              <span className="text-sm font-medium">{link.label}</span>
+            </div>
+            {link.badge && (
+              <span className="bg-error text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">{link.badge}</span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      <div className="px-4 mt-auto pt-4 border-t border-outline-variant space-y-1">
+        <button className="w-full flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-all">
+          <Settings className="w-5 h-5" />
+          <span className="text-sm">Settings</span>
+        </button>
+        <button 
+          onClick={() => onViewChange('landing')}
+          className="w-full flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-all"
+        >
+          <LogOut className="w-5 h-5" />
+          <span className="text-sm">Logout</span>
+        </button>
+      </div>
+    </aside>
+  );
+};
+
+const Header = ({ title, user }: { title: string, user: { name: string, role: string } }) => {
+  return (
+    <header className="h-16 flex justify-between items-center px-8 bg-surface/50 backdrop-blur-md sticky top-0 z-40 shadow-sm border-b border-outline-variant">
+      <div className="flex items-center gap-8">
+        <h2 className="text-lg font-bold text-primary uppercase">{title}</h2>
+        <div className="hidden lg:flex relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant w-4 h-4" />
+          <input 
+            type="text" 
+            placeholder="Search..." 
+            className="pl-10 pr-4 py-1.5 bg-surface-container-high border border-outline-variant rounded-full text-sm focus:ring-2 focus:ring-primary/20 w-64 outline-none" 
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-4">
+        <button className="p-2 hover:bg-surface-container-high rounded-full transition-colors relative">
+          <Bell className="w-5 h-5 text-on-surface-variant" />
+          <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+        </button>
+        <div className="h-8 w-px bg-outline-variant hidden sm:block"></div>
+        <div className="flex items-center gap-3 p-1 hover:bg-surface-container-high rounded-full transition-colors cursor-pointer capitalize">
+          <div className="text-right hidden sm:block">
+            <p className="text-xs font-bold text-on-surface leading-none">{user.name}</p>
+            <p className="text-[10px] text-on-surface-variant font-medium mt-1">{user.role}</p>
+          </div>
+          <div className="w-10 h-10 rounded-full border border-outline-variant bg-surface-container-high flex items-center justify-center">
+            <UserCircle className="text-primary w-8 h-8" />
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+// --- Views ---
+
+const LandingView = ({ onStart }: { onStart: (role: 'student' | 'admin') => void }) => {
+  return (
+    <div className="min-h-screen bg-surface">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center text-on-surface">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="text-primary w-6 h-6" />
+            <span className="text-xl font-bold text-on-surface font-display tracking-tight">LSP SMK Tanjung Priok 1</span>
+          </div>
+          <div className="hidden md:flex gap-8 items-center">
+            <a href="#" className="font-bold border-b-2 border-primary text-primary transition-all">Home</a>
+            <a href="#" className="text-on-surface-variant hover:text-on-surface transition-all">Skema</a>
+            <a href="#" className="text-on-surface-variant hover:text-on-surface transition-all">Informasi</a>
+            <a href="#" className="text-on-surface-variant hover:text-on-surface transition-all">Kontak</a>
+            <button 
+              onClick={() => onStart('student')}
+              className="bg-primary text-white px-6 py-2 rounded-full font-bold shadow-lg shadow-primary/20 hover:translate-y-[-2px] transition-all"
+            >
+              Portal Sertifikasi
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <section className="mesh-gradient pt-32 pb-20 px-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-8"
+          >
+            <div className="inline-flex items-center px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold text-xs uppercase tracking-wider">
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Badan Nasional Sertifikasi Profesi
+            </div>
+            <h1 className="text-5xl md:text-6xl font-black text-on-surface tracking-tight leading-tight">
+              Sistem Sertifikasi <br />
+              <span className="text-primary">Profesi Digital</span>
+            </h1>
+            <p className="text-lg text-on-surface-variant max-w-lg leading-relaxed">
+              LSP SMK Tanjung Priok 1 berkomitmen mencetak tenaga kerja kompeten dan profesional melalui standar sertifikasi nasional yang terintegrasi.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button 
+                onClick={() => onStart('student')}
+                className="bg-primary text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 hover:translate-y-[-2px] transition-all flex items-center justify-center gap-2 group"
+              >
+                Portal Siswa
+                <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+              </button>
+              <button 
+                onClick={() => onStart('admin')}
+                className="bg-surface-container border border-outline-variant text-on-surface px-8 py-4 rounded-2xl font-bold text-lg hover:bg-surface-container-high transition-all flex items-center justify-center gap-2"
+              >
+                Portal Admin/Asesor
+                <Lock className="w-5 h-5 text-primary" />
+              </button>
+            </div>
+          </motion.div>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="hidden lg:block relative"
+          >
+            <div className="glass-card p-4 rounded-[2.5rem] relative z-10">
+              <img 
+                src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2671&auto=format&fit=crop" 
+                alt="Students" 
+                className="rounded-[2rem] w-full h-[450px] object-cover" 
+              />
+            </div>
+            <div className="absolute -top-10 -right-10 w-64 h-64 bg-primary/20 rounded-full blur-3xl opacity-50" />
+            <div className="absolute -bottom-10 -left-10 w-64 h-64 bg-secondary/10 rounded-full blur-3xl opacity-50" />
+          </motion.div>
+        </div>
+      </section>
+
+      <section className="py-20 px-6 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {[
+            { label: 'Siswa Tersertifikasi', value: '1,240+', icon: GraduationCap, color: 'bg-primary-container/10 text-primary' },
+            { label: 'Skema Aktif', value: '12', icon: Database, color: 'bg-secondary-container/10 text-secondary' },
+            { label: 'TUK Tersedia', value: '5', icon: Globe, color: 'bg-tertiary-container/10 text-tertiary' },
+          ].map((stat, i) => (
+            <motion.div 
+              key={i}
+              whileHover={{ y: -5 }}
+              className="glass-card p-8 rounded-2xl flex flex-col items-center text-center group"
+            >
+              <div className={cn("w-16 h-16 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform", stat.color)}>
+                <stat.icon className="w-8 h-8" />
+              </div>
+              <h3 className="text-3xl font-black">{stat.value}</h3>
+              <p className="text-on-surface-variant font-medium mt-1">{stat.label}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      <footer className="bg-surface-container-low border-t border-outline-variant/30 py-10 px-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="text-center md:text-left">
+            <span className="text-lg font-bold">LSP SMK Tanjung Priok 1</span>
+            <p className="text-sm text-on-surface-variant mt-1">© 2024 LSP SMK Tanjung Priok 1. All Rights Reserved.</p>
+          </div>
+          <div className="flex gap-8 text-xs font-bold text-on-surface-variant px-4">
+            <a href="#" className="hover:text-primary transition-all">Privacy Policy</a>
+            <a href="#" className="hover:text-primary transition-all">Terms of Service</a>
+            <a href="#" className="hover:text-primary transition-all">Help Desk</a>
+          </div>
+          <div className="flex gap-2">
+            <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-primary transition-all cursor-pointer">
+              <Globe className="w-5 h-5" />
+            </div>
+            <div className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant hover:text-primary transition-all cursor-pointer">
+              <Mail className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+const LoginView = ({ onLogin }: { onLogin: (role: 'student' | 'admin') => void }) => {
+  const [role, setRole] = useState<'student' | 'admin'>('student');
+  const [showPassword, setShowPassword] = useState(false);
+
+  return (
+    <div className="min-h-screen mesh-gradient flex items-center justify-center p-6">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-[480px] glass-card rounded-3xl p-10 flex flex-col items-center"
+      >
+        <div className="mb-10 text-center">
+          <div className="w-20 h-20 mb-6 mx-auto flex items-center justify-center bg-surface-container-high rounded-full shadow-lg border border-outline-variant">
+            <ShieldCheck className="text-primary w-12 h-12" />
+          </div>
+          <h1 className="text-2xl font-black text-on-surface mb-1">LSP SMK Tanjung Priok 1</h1>
+          <p className="text-sm text-on-surface-variant font-medium">Sistem Informasi Sertifikasi Profesi</p>
+        </div>
+
+        <div className="w-full bg-surface-container-high p-1 rounded-xl flex mb-8">
+          <button 
+            onClick={() => setRole('student')}
+            className={cn(
+              "flex-1 py-2.5 rounded-lg text-xs font-bold transition-all",
+              role === 'student' ? "bg-primary text-white shadow-sm" : "text-on-surface-variant hover:text-on-surface"
+            )}
+          >
+            Siswa
+          </button>
+          <button 
+            onClick={() => setRole('admin')}
+            className={cn(
+              "flex-1 py-2.5 rounded-lg text-xs font-bold transition-all",
+              role === 'admin' ? "bg-primary text-white shadow-sm" : "text-on-surface-variant hover:text-on-surface"
+            )}
+          >
+            Admin / Asesor
+          </button>
+        </div>
+
+        <form className="w-full space-y-6" onSubmit={(e) => { e.preventDefault(); onLogin(role); }}>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">NISN / Email</label>
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors w-4 h-4" />
+                <input 
+                  type="text" 
+                  placeholder={role === 'student' ? 'Masukkan NISN Anda' : 'Email Admin'} 
+                  className="w-full pl-12 pr-4 py-3 bg-surface-container border border-outline-variant rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" 
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center px-1">
+                <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Kata Sandi</label>
+                <a href="#" className="text-[10px] font-bold text-primary hover:underline">Lupa Sandi?</a>
+              </div>
+              <div className="relative group">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors w-4 h-4" />
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  placeholder="••••••••" 
+                  className="w-full pl-12 pr-12 py-3 bg-surface-container border border-outline-variant rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none" 
+                  required
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 px-1">
+            <input type="checkbox" id="remember" className="w-4 h-4 rounded border-outline-variant bg-surface-container text-primary focus:ring-primary" />
+            <label htmlFor="remember" className="text-xs font-medium text-on-surface-variant select-none">Ingat saya di perangkat ini</label>
+          </div>
+
+          <button 
+            type="submit"
+            className="w-full py-4 bg-primary hover:bg-primary-container text-white rounded-2xl text-base font-bold shadow-xl shadow-primary/20 transition-all flex items-center justify-center gap-2 group"
+          >
+            Masuk ke Dashboard
+            <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+          </button>
+        </form>
+
+        <div className="mt-8 pt-8 border-t border-outline-variant/30 w-full text-center">
+          <p className="text-xs font-medium text-on-surface-variant">
+            Belum memiliki akun? <a href="#" className="text-primary font-bold hover:underline">Daftar Sertifikasi</a>
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const AdminDashboardView = () => {
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <section className="relative overflow-hidden rounded-3xl bg-primary text-white p-10 shadow-xl">
+        <div className="relative z-10 max-w-2xl">
+          <h2 className="text-4xl font-black mb-3">Selamat Datang, Admin</h2>
+          <p className="text-lg opacity-90 mb-6">Kelola sertifikasi profesi siswa dengan presisi. Pastikan semua dokumen divalidasi tepat waktu untuk menjaga integritas kompetensi.</p>
+          <div className="inline-flex items-center gap-3 bg-red-500/20 text-white px-4 py-2 rounded-xl backdrop-blur-sm border border-white/10 animate-pulse font-bold text-sm">
+            <AlertTriangle className="w-5 h-5 text-red-200" />
+            <span>5 permohonan baru dari siswa DKV</span>
+          </div>
+        </div>
+        <div className="absolute right-0 top-0 h-full w-1/3 opacity-20 hidden lg:block">
+          <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2669&auto=format&fit=crop" className="h-full w-full object-cover" alt="Background" />
+        </div>
+      </section>
+
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[
+          { label: 'Asesi Aktif', value: '42', subtitle: 'TOTAL', icon: Users, color: 'text-primary bg-primary/10' },
+          { label: 'Menunggu Validasi', value: '12', subtitle: 'URGENT', icon: Clock, color: 'text-emerald-400 bg-emerald-400/10', alert: true },
+          { label: 'Divalidasi Bulan Ini', value: '30', subtitle: 'BULAN INI', icon: CheckCircle2, color: 'text-secondary bg-secondary/10' },
+        ].map((item, i) => (
+          <motion.div 
+            key={i} 
+            whileHover={{ y: -5 }}
+            className={cn(
+              "bg-surface-container-high p-8 rounded-2xl shadow-sm border border-outline-variant transition-all relative",
+              item.alert && "border-emerald-500/20 shadow-emerald-500/5 shadow-lg"
+            )}
+          >
+            <div className="flex justify-between items-start mb-6">
+              <div className={cn("p-3 rounded-xl", item.color)}>
+                <item.icon className="w-6 h-6" />
+              </div>
+              <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container px-2 py-1 rounded">{item.subtitle}</span>
+            </div>
+            <h3 className={cn("text-4xl font-black text-on-surface")}>{item.value}</h3>
+            <p className={cn("text-sm font-medium mt-1 uppercase tracking-wider opacity-70 text-on-surface-variant")}>{item.label}</p>
+            {item.alert && <span className="absolute top-4 right-4 flex h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>}
+          </motion.div>
+        ))}
+      </section>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-surface-container-high p-8 rounded-2xl shadow-sm border border-outline-variant">
+          <div className="flex justify-between items-center mb-10">
+            <h4 className="text-lg font-bold">DISTRIBUSI SKEMA</h4>
+            <PieChartIcon className="w-5 h-5 text-on-surface-variant" />
+          </div>
+          <div className="h-64 flex items-center justify-around">
+            <div className="w-1/2 h-full relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={PIE_DATA}
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {PIE_DATA.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute top-1/2 left-1/4 -translate-y-1/2 text-center pointer-events-none hidden md:block">
+                <p className="text-2xl font-black">100%</p>
+                <p className="text-[10px] font-bold opacity-60 uppercase tracking-widest">TOTAL</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              {PIE_DATA.map((item, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                  <div>
+                    <p className="text-sm font-bold">{item.name}</p>
+                    <p className="text-[10px] text-on-surface-variant font-medium">{item.value}% (24 Siswa)</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-surface-container-high p-8 rounded-2xl shadow-sm border border-outline-variant">
+          <div className="flex justify-between items-center mb-10">
+            <h4 className="text-lg font-bold">TREND PERMOHONAN</h4>
+            <BarChartIcon className="w-5 h-5 text-on-surface-variant" />
+          </div>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={CHART_DATA}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#27272a" />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fontWeight: 700, fill: '#a1a1aa' }} 
+                  dy={10}
+                />
+                <YAxis hide />
+                <Tooltip 
+                  cursor={{ fill: 'rgba(255,255,255,0.05)' }} 
+                  contentStyle={{ backgroundColor: '#18181b', borderRadius: '12px', border: '1px solid #27272a', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.5)' }}
+                />
+                <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      <section className="bg-surface-container-high rounded-2xl shadow-sm border border-outline-variant overflow-hidden">
+        <div className="p-8 flex justify-between items-center bg-surface-container/50">
+          <h4 className="text-lg font-bold text-on-surface">PERMOHONAN TERBARU</h4>
+          <button className="text-primary text-sm font-bold flex items-center gap-1 hover:underline">
+            Lihat Semua <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-surface-container/30 border-y border-outline-variant">
+              <tr>
+                <th className="px-8 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">No</th>
+                <th className="px-8 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Nama</th>
+                <th className="px-8 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Skema</th>
+                <th className="px-8 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Tanggal</th>
+                <th className="px-8 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Status</th>
+                <th className="px-8 py-4 text-[10px] font-black text-on-surface-variant uppercase tracking-widest text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant">
+              {RECENT_APPLICATIONS.map((app, i) => (
+                <tr key={i} className="hover:bg-surface-container/50 transition-colors">
+                  <td className="px-8 py-4 text-sm font-medium text-on-surface-variant">{app.id}</td>
+                  <td className="px-8 py-4 text-sm font-bold text-on-surface">{app.name}</td>
+                  <td className="px-8 py-4 text-sm font-medium text-on-surface-variant">{app.scheme}</td>
+                  <td className="px-8 py-4 text-sm font-medium text-on-surface-variant">{app.date}</td>
+                  <td className="px-8 py-4">
+                    <span className={cn(
+                      "px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-2 w-fit uppercase tracking-wider",
+                      app.status === 'Valid' ? "bg-emerald-400/10 text-emerald-400" : "bg-primary/10 text-primary"
+                    )}>
+                      <div className={cn("w-1.5 h-1.5 rounded-full", app.status === 'Valid' ? "bg-emerald-400" : "bg-primary")} />
+                      {app.status}
+                    </span>
+                  </td>
+                  <td className="px-8 py-4 text-center">
+                    <button className="text-on-surface-variant hover:text-primary transition-colors">
+                      <Archive className="w-5 h-5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+};
+
+const FormAPL01 = () => {
+  const [step, setStep] = useState(2);
+  
+  return (
+    <div className="max-w-4xl mx-auto space-y-12 animate-in slide-in-from-bottom duration-500">
+      <div className="space-y-2">
+        <h2 className="text-3xl font-black text-on-surface">Form APL-01: Permohonan Sertifikasi Kompetensi</h2>
+        <p className="text-base text-on-surface-variant font-medium">Lengkapi data diri Anda sesuai dengan dokumen resmi untuk keperluan validasi sertifikasi profesional.</p>
+      </div>
+
+      <div className="relative flex justify-between items-center px-2">
+        <div className="absolute top-[18px] left-0 w-full h-[2px] bg-surface-container-high -z-10">
+          <div className="h-full bg-primary transition-all duration-500" style={{ width: `${(step - 1) * 33.33}%` }} />
+        </div>
+        {[
+          { n: 1, label: 'RINCIAN DATA' },
+          { n: 2, label: 'DATA DIRI ASESI' },
+          { n: 3, label: 'DOKUMEN PENDUKUNG' },
+          { n: 4, label: 'KONFIRMASI' },
+        ].map((s) => (
+          <div key={s.n} className="flex flex-col items-center gap-3">
+            <div className={cn(
+              "w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shadow-sm transition-all duration-300",
+              step > s.n ? "bg-primary text-white" : step === s.n ? "bg-primary text-white ring-4 ring-primary/20" : "bg-surface-container-high text-on-surface-variant"
+            )}>
+              {step > s.n ? <CheckCircle2 className="w-5 h-5 color-white" /> : s.n}
+            </div>
+            <span className={cn(
+              "text-[10px] font-black tracking-widest transition-all",
+              step >= s.n ? "text-primary" : "text-on-surface-variant opacity-60"
+            )}>{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="glass-card rounded-3xl overflow-hidden">
+        <div className="bg-surface-container/50 px-8 py-5 border-b border-outline-variant flex items-center gap-3">
+          <UserCircle className="text-primary w-6 h-6" />
+          <h3 className="text-lg font-bold text-on-surface">BAGIAN 1: DATA PRIBADI</h3>
+        </div>
+        
+        <div className="p-8 space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Nama Lengkap</label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value="BUDI SANTOSO" 
+                  disabled 
+                  className="w-full bg-surface-container/50 border-outline-variant text-on-surface-variant rounded-xl px-4 py-3 cursor-not-allowed font-bold" 
+                />
+                <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 w-4 h-4" />
+              </div>
+              <p className="text-[9px] text-on-surface-variant/60 italic px-1 font-medium">Terkunci secara sistem berdasarkan database DAPODIK</p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">NISN</label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  value="0054321098" 
+                  disabled 
+                  className="w-full bg-surface-container/50 border-outline-variant text-on-surface-variant rounded-xl px-4 py-3 cursor-not-allowed font-bold" 
+                />
+                <Lock className="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 w-4 h-4" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Kelas & Jurusan</label>
+              <select className="w-full border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none">
+                <option>XII TKJ 1</option>
+                <option>XII TKJ 2</option>
+                <option>XII MM 1</option>
+                <option>XII RPL 1</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Tempat / Tanggal Lahir</label>
+              <div className="flex gap-2">
+                <input type="text" placeholder="Jakarta" className="w-2/3 border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none" />
+                <input type="date" className="w-1/3 border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none" />
+              </div>
+            </div>
+
+            <div className="md:col-span-2 space-y-2">
+              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Alamat Lengkap (Sesuai KTP/KK)</label>
+              <textarea 
+                rows={3} 
+                className="w-full border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none resize-none" 
+                placeholder="Jl. Jampea No. 1, Kel. Koja, Kec. Tanjung Priok, Jakarta Utara, 14220"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">No. Handphone (WhatsApp Active)</label>
+              <div className="relative group">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-bold text-sm">+62</span>
+                <input type="tel" className="w-full pl-14 pr-4 py-3 border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl transition-all bg-surface-container font-medium outline-none" placeholder="8123456789" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-1">Email Institusi / Pribadi</label>
+              <input type="email" className="w-full border-outline-variant focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl px-4 py-3 transition-all bg-surface-container font-medium outline-none" placeholder="budi.santoso@student.sch.id" />
+            </div>
+          </div>
+
+          <div className="bg-primary/10 border-l-4 border-primary p-5 rounded-r-2xl flex items-start gap-4">
+            <HelpCircle className="text-primary w-6 h-6 mt-1 shrink-0" />
+            <p className="text-sm font-medium text-on-surface-variant leading-relaxed">
+              Pastikan data yang Anda masukkan sudah benar. Kesalahan dalam pengisian data diri dapat menyebabkan kesalahan pada pencetakan Sertifikat Kompetensi dari BNSP.
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-surface-container/30 px-8 py-6 border-t border-outline-variant flex flex-col md:flex-row justify-between items-center gap-4">
+          <button className="flex items-center gap-2 text-on-surface-variant font-bold hover:text-primary px-4 py-2 rounded-xl transition-all">
+            <ArrowLeft className="w-5 h-5" />
+            Kembali
+          </button>
+          <div className="flex items-center gap-6 w-full md:w-auto justify-end">
+            <a href="#" className="text-xs font-bold text-primary hover:underline">Simpan Draft</a>
+            <button className="bg-primary text-white px-10 py-3 rounded-2xl font-bold shadow-xl shadow-primary/20 hover:bg-primary-container transition-all flex items-center gap-2 group">
+              Lanjut
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {[
+          { label: 'Siswa Tersertifikasi', value: '1,240+', icon: GraduationCap, color: 'text-primary bg-primary/10' },
+          { label: 'Skema Keahlian', value: '24', icon: Database, color: 'text-secondary bg-secondary/10' },
+          { label: 'Akreditasi LSP', value: 'A', icon: Star, color: 'text-orange-500 bg-orange-500/10' },
+        ].map((item, i) => (
+          <div key={i} className="bg-surface-container-high p-6 rounded-2xl border border-outline-variant shadow-sm flex items-center gap-4">
+            <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", item.color)}>
+              <item.icon className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="font-black text-xl text-on-surface">{item.value}</p>
+              <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">{item.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const StudentDashboardView = () => {
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h2 className="text-3xl font-black text-on-surface">Selamat Datang, Ahmad Rizki! 👋</h2>
+          <div className="flex flex-wrap gap-4 mt-3">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-bold border border-primary/20">
+              <CheckCircle2 className="w-4 h-4" />
+              NISN: 0054321987
+            </span>
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-secondary/10 text-secondary rounded-full text-xs font-bold border border-secondary/20">
+              <GraduationCap className="w-4 h-4" />
+              XII Teknik Kendaraan Ringan Otomotif 1
+            </span>
+          </div>
+        </div>
+        <div className="hidden lg:block text-right">
+          <p className="text-[10px] text-on-surface-variant font-black uppercase tracking-widest mb-1">Sesi Berakhir Dalam</p>
+          <p className="text-3xl font-black text-primary font-display">24:12:05</p>
+        </div>
+      </section>
+
+      <div className="bg-surface-container-high p-10 rounded-3xl shadow-sm border border-outline-variant">
+        <h3 className="text-[10px] font-black text-on-surface-variant mb-10 uppercase tracking-[0.2em]">Progress Sertifikasi</h3>
+        <div className="relative flex items-center justify-between px-10">
+          <div className="absolute top-[18px] left-[10%] right-[10%] h-[2px] bg-outline-variant">
+            <div className="h-full bg-primary w-1/2" />
+          </div>
+          {[
+            { label: 'Skema', active: true, done: true },
+            { label: 'APL-01', active: true, done: true },
+            { label: 'APL-02', active: true, done: false },
+            { label: 'Validasi', active: false, done: false },
+            { label: 'Assessment', active: false, done: false },
+          ].map((s, i) => (
+            <div key={i} className="relative flex flex-col items-center gap-3">
+              <div className={cn(
+                "w-9 h-9 rounded-full flex items-center justify-center z-10 font-bold text-sm",
+                s.done ? "bg-primary text-white" : s.active ? "bg-surface-container border-2 border-primary text-primary" : "bg-surface-container-high text-on-surface-variant border border-outline-variant"
+              )}>
+                {s.done ? <CheckCircle2 className="w-5 h-5" /> : i + 1}
+              </div>
+              <span className={cn(
+                "text-[10px] font-black tracking-widest",
+                s.active ? "text-primary" : "text-on-surface-variant opacity-60"
+              )}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="md:col-span-12 lg:col-span-7 bg-surface-container-high p-8 rounded-3xl shadow-sm border border-outline-variant flex flex-col min-h-[400px]">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-black text-on-surface">Status Terkini</h3>
+            <span className="px-4 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-black flex items-center gap-2 border border-primary/20">
+              <span className="w-2 h-2 bg-primary rounded-full animate-pulse"></span>
+              In Progress
+            </span>
+          </div>
+          <div className="space-y-8 flex-1">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Skema Sertifikasi</p>
+                <p className="text-base font-black">Pemeliharaan Kendaraan Ringan (TKRO)</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Tahapan Saat Ini</p>
+                <p className="text-base font-black text-primary">Mengisi Form APL-02</p>
+              </div>
+            </div>
+            <div className="p-6 bg-surface-container-low rounded-2xl border-l-4 border-primary">
+              <p className="text-sm font-medium text-on-surface-variant italic leading-relaxed">
+                "Silahkan lengkapi bukti-bukti kompetensi pada form APL-02 untuk melanjutkan ke tahap validasi oleh admin LSP."
+              </p>
+            </div>
+            <p className="text-[10px] font-bold text-on-surface-variant">Update Terakhir: <span className="font-black">24 Okt 2024, 14:30</span></p>
+          </div>
+          <button className="mt-8 w-full bg-primary hover:bg-primary-container text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl transition-all">
+            Lanjutkan APL-02
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="md:col-span-12 lg:col-span-5 bg-surface-container-high p-8 rounded-3xl shadow-sm border border-outline-variant">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-black text-on-surface">Notifikasi</h3>
+            <button className="text-xs font-bold text-primary hover:underline">Lihat Semua</button>
+          </div>
+          <div className="space-y-4">
+            {[
+              { title: 'APL-01 divalidasi', desc: 'Dokumen pendaftaran telah disetujui.', icon: FileCheck, time: '2 Jam', color: 'bg-primary/10 text-primary' },
+              { title: 'Jadwal Tersedia', desc: 'Cek tab Jadwal pengarahan.', icon: Calendar, time: 'Kemarin', color: 'bg-secondary/10 text-secondary' },
+              { title: 'Profil Portofolio', desc: 'Unggah sertifikat PKL terbaru.', icon: FileText, time: '23 Okt', color: 'bg-orange-500/10 text-orange-500' },
+            ].map((n, i) => (
+              <div key={i} className="flex gap-4 p-4 rounded-2xl hover:bg-surface-container transition-colors group cursor-pointer border border-transparent hover:border-outline-variant/10">
+                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105", n.color)}>
+                  <n.icon className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-black text-on-surface leading-tight">{n.title}</p>
+                  <p className="text-xs font-medium text-on-surface-variant">{n.desc}</p>
+                  <p className="text-[10px] font-bold text-on-surface-variant/50">{n.time} yang lalu</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <a href="#" className="bg-surface-container-high p-6 rounded-2xl flex items-center gap-4 hover:scale-[1.02] transition-transform border border-outline-variant">
+          <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center shadow-sm border border-outline-variant">
+            <Download className="text-primary w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Download</p>
+            <p className="text-sm font-black text-on-surface">Buku Panduan</p>
+          </div>
+        </a>
+        <a href="#" className="bg-surface-container-high p-6 rounded-2xl flex items-center gap-4 hover:scale-[1.02] transition-transform border border-outline-variant">
+          <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center shadow-sm border border-outline-variant">
+            <HelpCircle className="text-primary w-6 h-6" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Bantuan</p>
+            <p className="text-sm font-black text-on-surface">FAQ Sertifikasi</p>
+          </div>
+        </a>
+        <div className="sm:col-span-2 relative overflow-hidden rounded-3xl bg-primary text-white p-6 flex items-center justify-between group">
+          <div className="relative z-10">
+            <p className="text-[10px] font-bold uppercase opacity-80 mb-1 tracking-widest">Info Sertifikasi</p>
+            <h4 className="text-lg font-black">Uji Kompetensi Gelombang 2</h4>
+            <p className="text-xs opacity-90 font-medium">Mulai 15 November 2024</p>
+          </div>
+          <Star className="w-20 h-20 absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 group-hover:rotate-12 transition-transform" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Main App ---
+
+export default function App() {
+  const [view, setView] = useState<ViewState>('landing');
+  const [currentUser, setCurrentUser] = useState<{ name: string, role: 'admin' | 'student' } | null>(null);
+
+  const handleStart = (role: 'student' | 'admin') => setView('login');
+  
+  const handleLogin = (role: 'student' | 'admin') => {
+    const userRole = role === 'admin' ? 'admin' : 'student';
+    setCurrentUser({ 
+      name: userRole === 'admin' ? 'Admin Utama' : 'Ahmad Rizki', 
+      role: userRole 
+    });
+    setView(userRole === 'admin' ? 'admin-dashboard' : 'student-dashboard');
+  };
+
+  const handleViewChange = (newView: ViewState) => setView(newView);
+
+  return (
+    <div className="min-h-screen text-on-surface font-sans">
+      <AnimatePresence mode="wait">
+        {view === 'landing' && (
+          <motion.div key="landing" exit={{ opacity: 0 }}>
+            <LandingView onStart={handleStart} />
+          </motion.div>
+        )}
+
+        {view === 'login' && (
+          <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <LoginView onLogin={handleLogin} />
+          </motion.div>
+        )}
+
+        {currentUser && (view === 'admin-dashboard' || view === 'student-dashboard' || view === 'form-apl01' || view === 'validation') && (
+          <div key="dashboard-layout" className="flex">
+            <Sidebar activeView={view} onViewChange={handleViewChange} role={currentUser.role} />
+            <main className="flex-1 ml-[280px] min-h-screen flex flex-col bg-surface">
+              <Header 
+                title={view === 'admin-dashboard' ? 'Overview' : view === 'form-apl01' ? 'Form APL-01' : view === 'validation' ? 'Validasi Dokumen' : 'Beranda'} 
+                user={{ name: currentUser.name, role: currentUser.role === 'admin' ? 'Administrator' : 'Siswa • XII TKRO 1' }} 
+              />
+              <div className="p-8 pb-12 flex-1">
+                {view === 'admin-dashboard' && <AdminDashboardView />}
+                {view === 'student-dashboard' && <StudentDashboardView />}
+                {view === 'form-apl01' && <FormAPL01 />}
+                {view === 'validation' && (
+                  <div className="flex items-center justify-center h-[60vh] text-on-surface-variant italic font-medium">
+                    <p>Halaman Validasi Dokumen akan diimplementasikan pada tahap selanjutnya.</p>
+                  </div>
+                )}
+              </div>
+              <footer className="px-8 py-6 border-t border-outline-variant/20 flex flex-col sm:flex-row justify-between items-center gap-4 bg-surface-container/30">
+                <div>
+                  <p className="text-sm font-bold text-on-surface">LSP SMK Tanjung Priok 1</p>
+                  <p className="text-[10px] text-on-surface-variant font-medium">© 2024 All Rights Reserved.</p>
+                </div>
+                <div className="flex gap-6 text-[10px] font-black text-on-surface-variant uppercase tracking-widest">
+                  <a href="#" className="hover:text-primary transition-colors">Privacy Policy</a>
+                  <a href="#" className="hover:text-primary transition-colors">Terms of Service</a>
+                  <a href="#" className="hover:text-primary transition-colors">Help Desk</a>
+                </div>
+              </footer>
+            </main>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

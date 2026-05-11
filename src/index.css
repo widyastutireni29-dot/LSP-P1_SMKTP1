@@ -1,0 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", sans-serif;
+
+  --color-primary: #6366f1; /* indigo-500 */
+  --color-primary-container: #4f46e1; /* indigo-600 */
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #e0e7ff;
+
+  --color-secondary: #a855f7; /* purple-500 */
+  --color-secondary-container: #1e1b4b; /* dark indigo/purple blend */
+
+  --color-surface: #09090b;
+  --color-surface-container: #121214;
+  --color-surface-container-low: #0c0c0e;
+  --color-surface-container-high: #18181b;
+  --color-surface-container-highest: #27272a;
+  
+  --color-on-surface: #fafafa;
+  --color-on-surface-variant: #a1a1aa; /* zinc-400 */
+
+  --color-outline: #3f3f46; /* zinc-600 */
+  --color-outline-variant: #27272a; /* zinc-800 */
+
+  --color-error: #ef4444;
+  --color-error-container: #450a0a;
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-on-surface font-sans;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display text-on-surface;
+  }
+  input, select, textarea {
+    @apply bg-surface-container-high border-outline-variant text-on-surface focus:ring-primary/50 focus:border-primary transition-all;
+  }
+}
+
+.glass-card {
+  @apply bg-[#18181B] border border-outline-variant shadow-xl shadow-black/40;
+}
+
+.mesh-gradient {
+  background-color: #09090b;
+  background-image: 
+      radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.1) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, rgba(168, 85, 247, 0.05) 0px, transparent 50%);
+}
