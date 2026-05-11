@@ -37,6 +37,9 @@ import {
   EyeOff,
   Menu,
   X,
+  XCircle,
+  RefreshCcw,
+  Check,
   PieChart as PieChartIcon,
   BarChart2 as BarChartIcon
 } from 'lucide-react';
@@ -57,15 +60,15 @@ import { submitToGoogleSheets, verifyLogin } from './services/googleSheetService
 
 // --- Types ---
 
-type ViewState = 'landing' | 'login' | 'student-dashboard' | 'admin-dashboard' | 'form-apl01' | 'validation';
+type ViewState = 'landing' | 'login' | 'student-dashboard' | 'admin-dashboard' | 'form-apl01' | 'validation' | 'schemes' | 'apl02';
 
 // --- Mock Data ---
 
 const RECENT_APPLICATIONS = [
-  { id: '01', name: 'Ahmad Fauzi', scheme: 'Teknik Kendaraan Ringan', date: '12 Mei 2024', status: 'Valid' },
-  { id: '02', name: 'Siti Aminah', scheme: 'Desain Komunikasi Visual', date: '14 Mei 2024', status: 'Pending' },
-  { id: '03', name: 'Budi Hartono', scheme: 'Teknik Kendaraan Ringan', date: '15 Mei 2024', status: 'Valid' },
-  { id: '04', name: 'Rina Sari', scheme: 'Desain Komunikasi Visual', date: '15 Mei 2024', status: 'Pending' },
+  { id: '01', name: 'Ahmad Fauzi', scheme: 'Junior Operator Desain Grafis', date: '12 Mei 2024', status: 'Valid' },
+  { id: '02', name: 'Siti Aminah', scheme: 'Junior Operator Desain Grafis', date: '14 Mei 2024', status: 'Pending' },
+  { id: '03', name: 'Budi Hartono', scheme: 'Junior Operator Desain Grafis', date: '15 Mei 2024', status: 'Valid' },
+  { id: '04', name: 'Rina Sari', scheme: 'Junior Operator Desain Grafis', date: '15 Mei 2024', status: 'Pending' },
 ];
 
 const CHART_DATA = [
@@ -77,8 +80,7 @@ const CHART_DATA = [
 ];
 
 const PIE_DATA = [
-  { name: 'TKRO', value: 58, color: '#6366f1' }, // indigo-500
-  { name: 'DKV', value: 42, color: '#a855f7' }, // purple-500
+  { name: 'Desain Grafis', value: 100, color: '#10b981' }, // emerald-500
 ];
 
 // --- Components ---
@@ -800,6 +802,241 @@ const FileUploader = ({
   );
 };
 
+const ValidationView = () => {
+  const [applications, setApplications] = useState(RECENT_APPLICATIONS);
+
+  const handleAction = (id: string, newStatus: string) => {
+    // In a real app, this would be an API call to update the status in GSheets
+    setApplications(prev => prev.map(app => app.id === id ? { ...app, status: newStatus } : app));
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-black text-on-surface">Validasi Dokumen</h2>
+          <p className="text-on-surface-variant font-medium mt-1">Kelola dan verifikasi berkas pendaftaran sertifikasi asesi.</p>
+        </div>
+        <div className="flex items-center gap-3 bg-surface-container-high px-4 py-2 rounded-2xl border border-outline-variant shadow-sm">
+          <Clock className="w-5 h-5 text-primary" />
+          <div className="text-left">
+            <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest leading-none">Menunggu</p>
+            <p className="text-lg font-black text-on-surface leading-none mt-1">12 Berkas</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-surface-container-high rounded-[2rem] shadow-sm border border-outline-variant overflow-hidden">
+        <div className="p-8 flex justify-between items-center bg-surface-container/50 border-b border-outline-variant">
+          <h4 className="text-lg font-bold text-on-surface tracking-tight uppercase">Daftar Antrean APL-01</h4>
+          <div className="relative group hidden md:block">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors w-4 h-4" />
+            <input 
+              type="text" 
+              placeholder="Cari asesi..." 
+              className="pl-10 pr-4 py-2 bg-surface-container border border-outline-variant rounded-xl text-xs outline-none focus:ring-2 focus:ring-primary/20 w-64 transition-all" 
+            />
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-surface-container/30 border-b border-outline-variant">
+              <tr>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Asesi</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Skema Sertifikasi</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Tgl Kirim</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em]">Status</th>
+                <th className="px-8 py-5 text-[10px] font-black text-on-surface-variant uppercase tracking-[0.2em] text-center">Tindakan Cepat</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant">
+              {applications.map((app) => (
+                <tr key={app.id} className="hover:bg-surface-container/30 transition-all group">
+                  <td className="px-8 py-5">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-lg border border-primary/20">
+                        {app.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-on-surface">{app.name}</p>
+                        <p className="text-[10px] font-bold text-on-surface-variant opacity-60">ID: APL-{app.id}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-on-surface-variant group-hover:text-on-surface transition-colors">{app.scheme}</p>
+                      <button className="text-[10px] font-black text-primary hover:underline flex items-center gap-1">
+                        <Eye className="w-3 h-3" /> Lihat Berkas
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-8 py-5 text-sm font-bold text-on-surface-variant">{app.date}</td>
+                  <td className="px-8 py-5">
+                    <span className={cn(
+                      "px-4 py-1.5 rounded-xl text-[10px] font-black flex items-center gap-2 w-fit uppercase tracking-wider border",
+                      app.status === 'Valid' ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : 
+                      app.status === 'Revisi' ? "bg-orange-500/10 text-orange-500 border-orange-500/20" :
+                      app.status === 'Ditolak' ? "bg-error/10 text-error border-error/20" :
+                      "bg-primary/10 text-primary border-primary/20"
+                    )}>
+                      <div className={cn("w-1.5 h-1.5 rounded-full", 
+                        app.status === 'Valid' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : 
+                        app.status === 'Revisi' ? "bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]" :
+                        app.status === 'Ditolak' ? "bg-error shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
+                        "bg-primary shadow-[0_0_8px_rgba(99,102,241,0.5)]"
+                      )} />
+                      {app.status}
+                    </span>
+                  </td>
+                  <td className="px-8 py-5">
+                    <div className="flex items-center justify-center gap-2">
+                      <button 
+                        onClick={() => handleAction(app.id, 'Valid')}
+                        disabled={app.status === 'Valid'}
+                        className="p-2.5 bg-emerald-500/5 hover:bg-emerald-500 text-on-surface-variant hover:text-white rounded-xl border border-emerald-500/10 hover:border-emerald-500 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+                        title="Setujui Dokumen"
+                      >
+                        <CheckCircle2 className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => handleAction(app.id, 'Revisi')}
+                        disabled={app.status === 'Revisi'}
+                        className="p-2.5 bg-orange-500/5 hover:bg-orange-500 text-on-surface-variant hover:text-white rounded-xl border border-orange-500/10 hover:border-orange-500 transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+                        title="Minta Revisi"
+                      >
+                        <RefreshCcw className="w-5 h-5" />
+                      </button>
+                      <button 
+                        onClick={() => handleAction(app.id, 'Ditolak')}
+                        disabled={app.status === 'Ditolak'}
+                        className="p-2.5 bg-error/5 hover:bg-error text-on-surface-variant hover:text-white rounded-xl border border-error/10 hover:border-error transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none"
+                        title="Tolak Pendaftaran"
+                      >
+                        <XCircle className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+        <div className="flex items-center gap-5 p-6 bg-surface-container/50 rounded-3xl border border-outline-variant group hover:bg-emerald-500/5 transition-all">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <ShieldCheck className="w-8 h-8" />
+          </div>
+          <div>
+            <h5 className="text-sm font-black uppercase tracking-widest text-on-surface-variant mb-1">Standar Keamanan</h5>
+            <p className="text-xs font-medium text-on-surface-variant leading-relaxed">Seluruh proses validasi direkam pada log sistem untuk audit integritas pendaftaran BNSP.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-5 p-6 bg-surface-container/50 rounded-3xl border border-outline-variant group hover:bg-primary/5 transition-all">
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+            <Database className="w-8 h-8" />
+          </div>
+          <div>
+            <h5 className="text-sm font-black uppercase tracking-widest text-on-surface-variant mb-1">Sync Real-time</h5>
+            <p className="text-xs font-medium text-on-surface-variant leading-relaxed">Status perubahan akan langsung tersinkronisasi ke Google Sheet Database dan dashboard asesi.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SchemesView = () => {
+  const schemes = [
+    { 
+      id: 'dg', 
+      title: 'Junior Operator Desain Grafis', 
+      code: 'M.74100.001.02', 
+      status: 'Aktif', 
+      units: 9, 
+      color: 'bg-emerald-500',
+      active: true 
+    },
+    { 
+      id: 'cc', 
+      title: 'Junior Content Creator', 
+      code: 'M.74100.005.02', 
+      status: 'Non-Aktif', 
+      units: 7, 
+      color: 'bg-slate-400',
+      active: false 
+    },
+    { 
+      id: 'tkro', 
+      title: 'Junior Mekanik TKRO', 
+      code: 'G.45600.001.01', 
+      status: 'Non-Aktif', 
+      units: 12, 
+      color: 'bg-slate-400',
+      active: false 
+    }
+  ];
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-black text-on-surface">Skema & Unit Kompetensi</h2>
+          <p className="text-on-surface-variant font-medium mt-1">Daftar skema sertifikasi yang tersedia dan unit kompetensi terkait.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {schemes.map((s) => (
+          <div key={s.id} className={cn(
+            "bg-surface-container-high rounded-3xl p-8 border border-outline-variant transition-all hover:translate-y-[-4px] group",
+            !s.active && "opacity-60 grayscale"
+          )}>
+            <div className="flex justify-between items-start mb-6">
+              <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black", s.color)}>
+                {s.title.charAt(0)}
+              </div>
+              <span className={cn(
+                "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                s.active ? "bg-emerald-500/10 text-emerald-500" : "bg-slate-500/10 text-slate-500"
+              )}>
+                {s.status}
+              </span>
+            </div>
+            <h4 className="text-xl font-black text-on-surface mb-2 group-hover:text-primary transition-colors">{s.title}</h4>
+            <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-6">{s.code}</p>
+            
+            <div className="space-y-3 mb-8">
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-on-surface-variant">Jumlah Unit</span>
+                <span className="text-on-surface">{s.units} Unit</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-on-surface-variant">Metode Uji</span>
+                <span className="text-on-surface">Observasi & Tertulis</span>
+              </div>
+            </div>
+
+            <button 
+              disabled={!s.active}
+              className={cn(
+                "w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
+                s.active ? "bg-primary/10 text-primary hover:bg-primary hover:text-white" : "bg-surface-container text-on-surface-variant cursor-not-allowed"
+              )}
+            >
+              {s.active ? "Lihat Detail" : "Belum Tersedia"}
+              {s.active && <ArrowRight className="w-4 h-4" />}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const FormAPL01 = () => {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1211,22 +1448,25 @@ const StudentDashboardView = () => {
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Skema Sertifikasi</p>
-                <p className="text-base font-black">Pemeliharaan Kendaraan Ringan (TKRO)</p>
+                <p className="text-base font-black">Junior Operator Desain Grafis</p>
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-on-surface-variant uppercase tracking-widest">Tahapan Saat Ini</p>
-                <p className="text-base font-black text-primary">Mengisi Form APL-02</p>
+                <p className="text-base font-black text-primary">Melengkapi Dokumen</p>
               </div>
             </div>
             <div className="p-6 bg-surface-container-low rounded-2xl border-l-4 border-primary">
               <p className="text-sm font-medium text-on-surface-variant italic leading-relaxed">
-                "Silahkan lengkapi bukti-bukti kompetensi pada form APL-02 untuk melanjutkan ke tahap validasi oleh admin LSP."
+                "Silahkan isi formulir pendaftaran (APL-01) dan mandiri (APL-02) melalui link resmi Google Form di bawah ini."
               </p>
             </div>
-            <p className="text-[10px] font-bold text-on-surface-variant">Update Terakhir: <span className="font-black">24 Okt 2024, 14:30</span></p>
+            <p className="text-[10px] font-bold text-on-surface-variant">Update Terakhir: <span className="font-black">Mei 2024, 10:30</span></p>
           </div>
-          <button className="mt-8 w-full bg-primary hover:bg-primary-container text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl transition-all">
-            Lanjutkan APL-02
+          <button 
+            onClick={() => window.open('https://forms.gle/5mkYQJNV1kgNRSAFA', '_blank')}
+            className="mt-8 w-full bg-primary hover:bg-primary-container text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 shadow-xl transition-all"
+          >
+            Buka Form APL-01 (Pendaftaran)
             <ArrowRight className="w-5 h-5" />
           </button>
         </div>
@@ -1306,7 +1546,15 @@ export default function App() {
     setView(userRole === 'admin' ? 'admin-dashboard' : 'student-dashboard');
   };
 
-  const handleViewChange = (newView: ViewState) => setView(newView);
+  const handleViewChange = (newView: ViewState) => {
+    if (newView === 'form-apl01') {
+      window.open('https://forms.gle/5mkYQJNV1kgNRSAFA', '_blank');
+    } else if (newView === 'apl02') {
+      window.open('https://forms.gle/2MpGEwA7pQVrJk5S8', '_blank');
+    } else {
+      setView(newView);
+    }
+  };
 
   return (
     <div className="min-h-screen text-on-surface font-sans">
@@ -1323,23 +1571,26 @@ export default function App() {
           </motion.div>
         )}
 
-        {currentUser && (view === 'admin-dashboard' || view === 'student-dashboard' || view === 'form-apl01' || view === 'validation') && (
+        {currentUser && (view === 'admin-dashboard' || view === 'student-dashboard' || view === 'form-apl01' || view === 'validation' || view === 'schemes') && (
           <div key="dashboard-layout" className="flex">
             <Sidebar activeView={view} onViewChange={handleViewChange} role={currentUser.role} />
             <main className="flex-1 ml-[280px] min-h-screen flex flex-col bg-surface">
               <Header 
-                title={view === 'admin-dashboard' ? 'Overview' : view === 'form-apl01' ? 'Form APL-01' : view === 'validation' ? 'Validasi Dokumen' : 'Beranda'} 
-                user={{ name: currentUser.name, role: currentUser.role === 'admin' ? 'Administrator' : 'Siswa • XII TKRO 1' }} 
+                title={
+                  view === 'admin-dashboard' ? 'Overview' : 
+                  view === 'form-apl01' ? 'Form APL-01' : 
+                  view === 'validation' ? 'Validasi Dokumen' : 
+                  view === 'schemes' ? 'Skema & Unit' :
+                  'Beranda'
+                } 
+                user={{ name: currentUser.name, role: currentUser.role === 'admin' ? 'Administrator' : 'Siswa • Junior Operator DG' }} 
               />
               <div className="p-8 pb-12 flex-1">
                 {view === 'admin-dashboard' && <AdminDashboardView />}
                 {view === 'student-dashboard' && <StudentDashboardView />}
                 {view === 'form-apl01' && <FormAPL01 />}
-                {view === 'validation' && (
-                  <div className="flex items-center justify-center h-[60vh] text-on-surface-variant italic font-medium">
-                    <p>Halaman Validasi Dokumen akan diimplementasikan pada tahap selanjutnya.</p>
-                  </div>
-                )}
+                {view === 'validation' && <ValidationView />}
+                {view === 'schemes' && <SchemesView />}
               </div>
               <footer className="px-8 py-6 border-t border-outline-variant/20 flex flex-col sm:flex-row justify-between items-center gap-4 bg-surface-container/30">
                 <div>
