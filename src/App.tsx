@@ -60,7 +60,7 @@ import { submitToGoogleSheets, verifyLogin } from './services/googleSheetService
 
 // --- Types ---
 
-type ViewState = 'landing' | 'login' | 'student-dashboard' | 'admin-dashboard' | 'form-apl01' | 'validation' | 'schemes' | 'apl02';
+type ViewState = 'landing' | 'login' | 'student-dashboard' | 'admin-dashboard' | 'form-apl01' | 'validation' | 'schemes' | 'apl02' | 'public-schemes';
 
 // --- Mock Data ---
 
@@ -104,11 +104,12 @@ const Sidebar = ({ activeView, onViewChange, role }: { activeView: ViewState, on
 
   const studentLinks: SidebarLink[] = [
     { id: 'student-dashboard', label: 'Beranda', icon: LayoutDashboard },
-    { id: 'form-apl01', label: 'APL-01', icon: FileText },
-    { id: 'apl02', label: 'APL-02', icon: FileCheck },
-    { id: 'status', label: 'Status', icon: BarChartIcon },
+    { id: 'schemes', label: 'Skema & Unit', icon: Database },
+    { id: 'form-apl01', label: 'Form APL-01', icon: FileText },
+    { id: 'apl02', label: 'Form APL-02', icon: FileCheck },
+    { id: 'status', label: 'Status Uji', icon: BarChartIcon },
     { id: 'portofolio', label: 'Portofolio', icon: Archive },
-    { id: 'notifications', label: 'Notifications', icon: Bell, badge: 3 },
+    { id: 'notifications', label: 'Notifikasi', icon: Bell, badge: 3 },
   ];
 
   const links = role === 'admin' ? adminLinks : studentLinks;
@@ -252,10 +253,17 @@ const LandingView = ({ onStart }: { onStart: (role: 'student' | 'admin') => void
                 <ArrowRight className="group-hover:translate-x-1 transition-transform" />
               </button>
               <button 
+                onClick={() => window.dispatchEvent(new CustomEvent('change-view', { detail: 'public-schemes' }))}
+                className="bg-emerald-500 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-emerald-500/20 hover:translate-y-[-2px] transition-all flex items-center justify-center gap-2"
+              >
+                Pendaftaran & Skema
+                <Database className="w-5 h-5" />
+              </button>
+              <button 
                 onClick={() => onStart('admin')}
                 className="bg-surface-container border border-outline-variant text-on-surface px-8 py-4 rounded-2xl font-bold text-lg hover:bg-surface-container-high transition-all flex items-center justify-center gap-2"
               >
-                Portal Admin/Asesor
+                Portal Admin
                 <Lock className="w-5 h-5 text-primary" />
               </button>
             </div>
@@ -1020,18 +1028,49 @@ const SchemesView = () => {
               </div>
             </div>
 
-            <button 
-              disabled={!s.active}
-              className={cn(
-                "w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2",
-                s.active ? "bg-primary/10 text-primary hover:bg-primary hover:text-white" : "bg-surface-container text-on-surface-variant cursor-not-allowed"
-              )}
-            >
-              {s.active ? "Lihat Detail" : "Belum Tersedia"}
-              {s.active && <ArrowRight className="w-4 h-4" />}
-            </button>
+            <div className="grid grid-cols-1 gap-2">
+              <button 
+                disabled={!s.active}
+                onClick={() => s.active && window.open('https://forms.gle/5mkYQJNV1kgNRSAFA', '_blank')}
+                className={cn(
+                  "w-full py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2",
+                  s.active ? "bg-primary text-white shadow-lg shadow-primary/20 hover:scale-[1.02]" : "bg-surface-container text-on-surface-variant cursor-not-allowed"
+                )}
+              >
+                {s.active ? "Daftar APL-01" : "Belum Tersedia"}
+                {s.active && <FileText className="w-4 h-4" />}
+              </button>
+              <button 
+                disabled={!s.active}
+                onClick={() => s.active && window.open('https://forms.gle/2MpGEwA7pQVrJk5S8', '_blank')}
+                className={cn(
+                  "w-full py-3 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2",
+                  s.active ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:scale-[1.02]" : "bg-surface-container text-on-surface-variant cursor-not-allowed"
+                )}
+              >
+                {s.active ? "Isi APL-02" : "Belum Tersedia"}
+                {s.active && <FileCheck className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+};
+
+const PublicSchemesView = ({ onBack }: { onBack: () => void }) => {
+  return (
+    <div className="min-h-screen bg-surface flex flex-col pt-24 pb-20 px-6">
+      <div className="max-w-7xl mx-auto w-full">
+        <button 
+          onClick={onBack}
+          className="inline-flex items-center gap-2 text-on-surface-variant hover:text-primary font-bold mb-8 group"
+        >
+          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          Kembali ke Beranda
+        </button>
+        <SchemesView />
       </div>
     </div>
   );
@@ -1536,6 +1575,12 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<{ name: string, role: 'admin' | 'student' } | null>(null);
 
   const handleStart = (role: 'student' | 'admin') => setView('login');
+
+  React.useEffect(() => {
+    const handleViewChangeEv = (e: any) => setView(e.detail);
+    window.addEventListener('change-view', handleViewChangeEv);
+    return () => window.removeEventListener('change-view', handleViewChangeEv);
+  }, []);
   
   const handleLogin = (role: 'student' | 'admin') => {
     const userRole = role === 'admin' ? 'admin' : 'student';
@@ -1565,6 +1610,12 @@ export default function App() {
           </motion.div>
         )}
 
+        {view === 'public-schemes' && (
+          <motion.div key="public-schemes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <PublicSchemesView onBack={() => setView('landing')} />
+          </motion.div>
+        )}
+
         {view === 'login' && (
           <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <LoginView onLogin={handleLogin} />
@@ -1577,11 +1628,15 @@ export default function App() {
             <main className="flex-1 ml-[280px] min-h-screen flex flex-col bg-surface">
               <Header 
                 title={
-                  view === 'admin-dashboard' ? 'Overview' : 
+                  view === 'admin-dashboard' ? 'Overview Admin' : 
+                  view === 'student-dashboard' ? 'Dashboard Siswa' :
                   view === 'form-apl01' ? 'Form APL-01' : 
                   view === 'validation' ? 'Validasi Dokumen' : 
                   view === 'schemes' ? 'Skema & Unit' :
-                  'Beranda'
+                  view === 'status' ? 'Status Sertifikasi' :
+                  view === 'portofolio' ? 'Arsip Portofolio' :
+                  view === 'notifications' ? 'Pusat Notifikasi' :
+                  'LSP SMK Tanjung Priok 1'
                 } 
                 user={{ name: currentUser.name, role: currentUser.role === 'admin' ? 'Administrator' : 'Siswa • Junior Operator DG' }} 
               />
@@ -1591,6 +1646,17 @@ export default function App() {
                 {view === 'form-apl01' && <FormAPL01 />}
                 {view === 'validation' && <ValidationView />}
                 {view === 'schemes' && <SchemesView />}
+                {(view === 'status' || view === 'portofolio' || view === 'notifications' || view === 'schedule' || view === 'letters' || view === 'archive') && (
+                  <div className="flex flex-col items-center justify-center h-[50vh] text-on-surface-variant gap-4 bg-surface-container/20 rounded-[2rem] border border-dashed border-outline-variant">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Clock className="w-8 h-8 text-primary animate-pulse" />
+                    </div>
+                    <div className="text-center">
+                      <h4 className="text-xl font-black text-on-surface">Halaman Sedang Disiapkan</h4>
+                      <p className="text-xs font-medium mt-1">Modul {view.toUpperCase().replace('-', ' ')} sedang dalam proses sinkronisasi database LSP.</p>
+                    </div>
+                  </div>
+                )}
               </div>
               <footer className="px-8 py-6 border-t border-outline-variant/20 flex flex-col sm:flex-row justify-between items-center gap-4 bg-surface-container/30">
                 <div>
