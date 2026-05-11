@@ -64,16 +64,21 @@ export const verifyLogin = async (id: string, pass: string, role: 'student' | 'a
   // Sync dengan User Screenshot: Role "Siswa" atau "Admin"
   const sheetRole = role === 'student' ? 'Siswa' : 'Admin';
 
-  // FALLBACK: Kredensial Demo sesuai Screenshot User
+  // FALLBACK: Kredensial Demo (Simulasi jika GSheet belum terkoneksi)
   const DEMO_USERS = [
-    { Credential: '1234567890', Password: 'password', Role: 'Siswa', Name: 'Siswa' },
-    { Credential: 'admin@lsp.sch.id', Password: 'password', Role: 'Admin', Name: 'Admin' }
+    { Credential: '1234567890', Password: 'password', Role: 'Siswa', Name: 'Budi Santoso' },
+    { Credential: 'siswa2@lsp.sch.id', Password: 'password', Role: 'Siswa', Name: 'Siti Aminah' },
+    { Credential: 'siswa3@lsp.sch.id', Password: 'password', Role: 'Siswa', Name: 'Andi Wijaya' },
+    { Credential: 'siswa4@lsp.sch.id', Password: 'password', Role: 'Siswa', Name: 'Rina Putri' },
+    { Credential: 'siswa5@lsp.sch.id', Password: 'password', Role: 'Siswa', Name: 'Fajar Ramadhan' },
+    { Credential: 'admin@lsp.sch.id', Password: 'password', Role: 'Admin', Name: 'Admin Utama LSP' }
   ];
 
-  if (!AUTH_URL) {
+  // Gunakan Fallback jika URL masih default atau kosong
+  if (!AUTH_URL || AUTH_URL.includes('your-api-url') || AUTH_URL === '') {
     await new Promise(resolve => setTimeout(resolve, 800));
     const found = DEMO_USERS.find(u => 
-      u.Credential === id && 
+      u.Credential.toLowerCase() === id.toLowerCase() && 
       u.Password === pass && 
       u.Role === sheetRole
     );
@@ -82,19 +87,30 @@ export const verifyLogin = async (id: string, pass: string, role: 'student' | 'a
       success: true, 
       user: { name: found.Name, role: role } 
     };
-    throw new Error("GSheet API belum diset. Gunakan kredensial demo.");
+    throw new Error("Akun tidak ditemukan. Gunakan kredensial demo atau hubungi admin.");
   }
 
   try {
-    // Mencari berdasarkan kolom di GSheet (Credential, Password, Role)
+    // API akan mencari secara otomatis ke SELURUH baris di Google Sheet Anda
+    // Berapapun jumlah siswanya (10, 100, atau 1000), prosesnya tetap cepat.
     const response = await fetch(`${AUTH_URL}/search?Credential=${id}&Password=${pass}&Role=${sheetRole}`);
+    
+    if (!response.ok) throw new Error("Gagal menghubungi Database Google Sheet.");
+    
     const users = await response.json();
     
-    if (users && users.length > 0) {
-      return { success: true, user: { name: users[0].Name || users[0].name, role: role } };
+    if (Array.isArray(users) && users.length > 0) {
+      // Mengambil data pertama yang cocok
+      return { 
+        success: true, 
+        user: { 
+          name: users[0].Name || users[0].name || "User", 
+          role: role 
+        } 
+      };
     }
-    throw new Error("Data tidak ditemukan di Google Sheet.");
-  } catch (error) {
-    throw error;
+    throw new Error("NISN/Email atau Password salah.");
+  } catch (error: any) {
+    throw new Error(error.message || "Terjadi kesalahan koneksi database.");
   }
 };
